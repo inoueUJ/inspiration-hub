@@ -1,4 +1,5 @@
-import { drizzle } from "drizzle-orm/d1";
+import { drizzle as drizzleD1 } from "drizzle-orm/d1";
+import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 
 /**
@@ -8,11 +9,11 @@ import * as schema from "./schema";
  * - 本番環境（NODE_ENV === "production"）: Cloudflare D1（バインディング：DB）
  */
 
-let dbInstance: ReturnType<typeof drizzle> | null = null;
+let dbInstance: any = null;
 
 export function getDb(
   env?: { DB: D1Database }
-): ReturnType<typeof drizzle> {
+) {
   // 既存インスタンスがあれば再利用
   if (dbInstance) {
     return dbInstance;
@@ -26,7 +27,7 @@ export function getDb(
           "Please ensure d1_databases binding is configured in wrangler.jsonc"
       );
     }
-    dbInstance = drizzle(env.DB, { schema });
+    dbInstance = drizzleD1(env.DB, { schema });
   } else {
     // 開発環境：better-sqlite3
     try {
@@ -37,7 +38,7 @@ export function getDb(
       // WAL（Write-Ahead Logging）モードを有効化（パフォーマンス向上）
       sqliteDb.pragma("journal_mode = WAL");
 
-      dbInstance = drizzle(sqliteDb, { schema });
+      dbInstance = drizzleSqlite(sqliteDb, { schema });
     } catch (error) {
       throw new Error(
         `Failed to initialize local SQLite database: ${

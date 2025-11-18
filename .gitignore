@@ -44,3 +44,9 @@ next-env.d.ts
 !.dev.vars.example
 .env*
 !.env.example
+!.env.local.example
+
+# local database
+local.db
+local.db-shm
+local.db-wal
