@@ -1,4 +1,4 @@
-import { db } from "@/lib/db/client"
+import { getDb } from "@/lib/db/client"
 import { authors, quotes } from "@/lib/db/schema"
 import { eq, isNull, sql } from "drizzle-orm"
 
@@ -6,6 +6,7 @@ import { eq, isNull, sql } from "drizzle-orm"
  * 全人物を取得（削除済み除外）
  */
 export async function getAllAuthors() {
+  const db = await getDb();
   return db
     .select()
     .from(authors)
@@ -17,6 +18,7 @@ export async function getAllAuthors() {
  * 人物IDで取得
  */
 export async function getAuthorById(id: number) {
+  const db = await getDb();
   const [author] = await db
     .select()
     .from(authors)
@@ -31,6 +33,7 @@ export async function getAuthorById(id: number) {
  * 人物を作成
  */
 export async function createAuthor(name: string) {
+  const db = await getDb();
   const [author] = await db
     .insert(authors)
     .values({ name })
@@ -43,6 +46,7 @@ export async function createAuthor(name: string) {
  * 人物を更新
  */
 export async function updateAuthor(id: number, name: string) {
+  const db = await getDb();
   const [author] = await db
     .update(authors)
     .set({
@@ -60,6 +64,7 @@ export async function updateAuthor(id: number, name: string) {
  * 人物を削除（論理削除）
  */
 export async function deleteAuthor(id: number) {
+  const db = await getDb();
   const [author] = await db
     .update(authors)
     .set({ deletedAt: new Date() })
@@ -76,6 +81,7 @@ export async function getAuthorWithCount(id: number) {
   const author = await getAuthorById(id)
   if (!author) return null
 
+  const db = await getDb();
   const [quoteCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(quotes)
@@ -94,6 +100,7 @@ export async function getAuthorWithCount(id: number) {
  * カテゴリIDで人物一覧を取得（名言数含む）
  */
 export async function getAuthorsByCategory(categoryId: number) {
+  const db = await getDb();
   const result = await db
     .select({
       id: authors.id,
@@ -115,7 +122,7 @@ export async function getAuthorsByCategory(categoryId: number) {
     .groupBy(authors.id, authors.name, authors.createdAt, authors.updatedAt, authors.deletedAt)
     .orderBy(authors.name)
 
-  return result.map((row) => ({
+  return result.map((row: typeof result[0]) => ({
     id: row.id,
     name: row.name,
     createdAt: row.createdAt,

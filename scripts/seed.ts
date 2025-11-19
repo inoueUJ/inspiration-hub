@@ -9,7 +9,7 @@ import {
 async function seed() {
   console.log("🌱 Seeding database...")
 
-  const db = getDb()
+  const db = await getDb()
 
   // カテゴリ作成
   const [category1] = await db

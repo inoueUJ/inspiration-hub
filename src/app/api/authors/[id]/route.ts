@@ -11,15 +11,16 @@ import { requireAuth } from "@/lib/auth/middleware"
 import { AppError } from "@/lib/api/error"
 
 interface RouteContext {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 /**
  * GET /api/authors/[id]
  * 人物取得
  */
-export async function GET(request: NextRequest, { params }: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const author = await getAuthorById(id)
 
@@ -44,11 +45,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   try {
     await requireAuth(request)
 
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const body = await request.json()
     const validated = updateAuthorSchema.parse(body)
@@ -92,11 +94,12 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   try {
     await requireAuth(request)
 
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const author = await deleteAuthor(id)
 

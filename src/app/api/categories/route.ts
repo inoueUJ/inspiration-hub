@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { isNull } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import { getDb } from "@/lib/db/client";
 import { categories } from "@/lib/db/schema";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { createCategorySchema } from "@/lib/api/validation";
@@ -14,6 +14,7 @@ import { AppError } from "@/lib/api/error";
  */
 export async function GET() {
   try {
+    const db = await getDb();
     const allCategories = await db
       .select()
       .from(categories)
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = createCategorySchema.parse(body);
 
+    const db = await getDb();
     const [newCategory] = await db
       .insert(categories)
       .values(validated)

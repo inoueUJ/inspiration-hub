@@ -11,15 +11,16 @@ import { requireAuth } from "@/lib/auth/middleware"
 import { AppError } from "@/lib/api/error"
 
 interface RouteContext {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 /**
  * GET /api/quotes/[id]
  * 名言取得
  */
-export async function GET(request: NextRequest, { params }: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const quote = await getQuoteById(id)
 
@@ -44,11 +45,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   try {
     await requireAuth(request)
 
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const body = await request.json()
     const validated = updateQuoteSchema.parse(body)
@@ -80,11 +82,12 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   try {
     await requireAuth(request)
 
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const quote = await deleteQuote(id)
 

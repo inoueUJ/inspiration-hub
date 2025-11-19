@@ -1,4 +1,4 @@
-import { db } from "@/lib/db/client"
+import { getDb } from "@/lib/db/client"
 import { categories, subcategories } from "@/lib/db/schema"
 import { eq, isNull, sql } from "drizzle-orm"
 
@@ -6,6 +6,7 @@ import { eq, isNull, sql } from "drizzle-orm"
  * 全カテゴリを取得（削除済み除外）
  */
 export async function getAllCategories() {
+  const db = await getDb();
   return db
     .select()
     .from(categories)
@@ -17,6 +18,7 @@ export async function getAllCategories() {
  * カテゴリIDで取得
  */
 export async function getCategoryById(id: number) {
+  const db = await getDb();
   const [category] = await db
     .select()
     .from(categories)
@@ -31,6 +33,7 @@ export async function getCategoryById(id: number) {
  * カテゴリを作成
  */
 export async function createCategory(name: string) {
+  const db = await getDb();
   const [category] = await db
     .insert(categories)
     .values({ name })
@@ -43,6 +46,7 @@ export async function createCategory(name: string) {
  * カテゴリを更新
  */
 export async function updateCategory(id: number, name: string) {
+  const db = await getDb();
   const [category] = await db
     .update(categories)
     .set({
@@ -60,6 +64,7 @@ export async function updateCategory(id: number, name: string) {
  * カテゴリを削除（論理削除）
  */
 export async function deleteCategory(id: number) {
+  const db = await getDb();
   const [category] = await db
     .update(categories)
     .set({ deletedAt: new Date() })
@@ -76,6 +81,7 @@ export async function getCategoryWithCounts(id: number) {
   const category = await getCategoryById(id)
   if (!category) return null
 
+  const db = await getDb();
   const [subcategoryCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(subcategories)

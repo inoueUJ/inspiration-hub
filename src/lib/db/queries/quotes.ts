@@ -1,4 +1,4 @@
-import { db } from "@/lib/db/client"
+import { getDb } from "@/lib/db/client"
 import {
   quotes,
   authors,
@@ -11,6 +11,7 @@ import { eq, isNull, or, like, and, desc } from "drizzle-orm"
  * 名言を詳細情報付きで取得
  */
 export async function getQuoteById(id: number) {
+  const db = await getDb();
   const result = await db
     .select({
       quote: quotes,
@@ -49,6 +50,7 @@ export async function getQuoteById(id: number) {
  * 全名言を取得（詳細情報付き）
  */
 export async function getAllQuotes() {
+  const db = await getDb();
   const result = await db
     .select({
       quote: quotes,
@@ -70,7 +72,7 @@ export async function getAllQuotes() {
     )
     .orderBy(desc(quotes.createdAt))
 
-  return result.map((row) => ({
+  return result.map((row: typeof result[0]) => ({
     ...row.quote,
     author: row.author,
     subcategory: {
@@ -84,6 +86,7 @@ export async function getAllQuotes() {
  * 中項目IDで名言一覧を取得
  */
 export async function getQuotesBySubcategory(subcategoryId: number) {
+  const db = await getDb();
   const result = await db
     .select({
       quote: quotes,
@@ -106,7 +109,7 @@ export async function getQuotesBySubcategory(subcategoryId: number) {
     )
     .orderBy(desc(quotes.createdAt))
 
-  return result.map((row) => ({
+  return result.map((row: typeof result[0]) => ({
     ...row.quote,
     author: row.author,
     subcategory: {
@@ -120,6 +123,7 @@ export async function getQuotesBySubcategory(subcategoryId: number) {
  * 人物IDで名言一覧を取得
  */
 export async function getQuotesByAuthor(authorId: number) {
+  const db = await getDb();
   const result = await db
     .select({
       quote: quotes,
@@ -142,7 +146,7 @@ export async function getQuotesByAuthor(authorId: number) {
     )
     .orderBy(desc(quotes.createdAt))
 
-  return result.map((row) => ({
+  return result.map((row: typeof result[0]) => ({
     ...row.quote,
     author: row.author,
     subcategory: {
@@ -156,6 +160,7 @@ export async function getQuotesByAuthor(authorId: number) {
  * カテゴリIDで名言一覧を取得
  */
 export async function getQuotesByCategory(categoryId: number) {
+  const db = await getDb();
   const result = await db
     .select({
       quote: quotes,
@@ -178,7 +183,7 @@ export async function getQuotesByCategory(categoryId: number) {
     )
     .orderBy(desc(quotes.createdAt))
 
-  return result.map((row) => ({
+  return result.map((row: typeof result[0]) => ({
     ...row.quote,
     author: row.author,
     subcategory: {
@@ -192,6 +197,7 @@ export async function getQuotesByCategory(categoryId: number) {
  * 名言・作者名で検索
  */
 export async function searchQuotes(query: string) {
+  const db = await getDb();
   const result = await db
     .select({
       quote: quotes,
@@ -219,7 +225,7 @@ export async function searchQuotes(query: string) {
     .orderBy(desc(quotes.createdAt))
     .limit(30)
 
-  return result.map((row) => ({
+  return result.map((row: typeof result[0]) => ({
     ...row.quote,
     author: row.author,
     subcategory: {
@@ -239,6 +245,7 @@ export async function createQuote(data: {
   subcategoryId: number
   background?: string
 }) {
+  const db = await getDb();
   const [quote] = await db.insert(quotes).values(data).returning()
 
   return quote
@@ -257,6 +264,7 @@ export async function updateQuote(
     background?: string
   }
 ) {
+  const db = await getDb();
   const [quote] = await db
     .update(quotes)
     .set({
@@ -274,6 +282,7 @@ export async function updateQuote(
  * 名言を削除（論理削除）
  */
 export async function deleteQuote(id: number) {
+  const db = await getDb();
   const [quote] = await db
     .update(quotes)
     .set({ deletedAt: new Date() })

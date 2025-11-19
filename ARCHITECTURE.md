@@ -1,0 +1,140 @@
+# Inspiration Hub - アーキテクチャドキュメント
+
+## 📌 プロジェクト概要
+
+**Inspiration Hub** は、偉人やアニメキャラクター、映画キャラクターの名言をまとめ、ユーザーの自己啓発を支援するアプリケーションです。
+
+- **ターゲット層**: 20〜40歳のユーザー
+- **コンセプト**: 毎日変わる30件の名言で日々の刺激を提供
+- **性質**: 非商用、学習目的のプロジェクト
+
+---
+
+## 🏗️ 技術スタック
+
+### コア技術
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **UI Library**: shadcn/ui + Tailwind CSS
+
+### インフラ（完全 Cloudflare ベース）
+- **Runtime**: Cloudflare Workers
+- **Deploy**: Cloudflare Pages
+- **Database**: Cloudflare D1 (SQLite)
+- **ORM**: Drizzle ORM
+- **Batch Processing**: Cloudflare Cron Triggers (毎日 UTC 0時実行)
+- **Adapter**: @opennextjs/cloudflare
+
+### 認証・セッション
+- **方式**: Cookie + Session (簡易パスワード)
+- **対象**: 管理画面（`/admin` 配下）のみ
+- **実装**: Next.js Middleware + HttpOnly Cookie
+
+---
+
+## 📁 ディレクトリ構造
+
+```
+inspiration-hub/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── categories/route.ts
+│   │   │   ├── subcategories/route.ts
+│   │   │   ├── authors/route.ts
+│   │   │   ├── quotes/route.ts
+│   │   │   ├── daily-quotes/route.ts
+│   │   │   └── admin/
+│   │   │       └── login/route.ts
+│   │   ├── admin/
+│   │   │   ├── layout.tsx
+│   │   │   ├── quotes/page.tsx
+│   │   │   └── categories/page.tsx
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── globals.css
+│   └── lib/
+│       ├── db/
+│       │   ├── schema.ts
+│       │   ├── client.ts
+│       │   └── migrations/
+│       ├── api/
+│       │   ├── response.ts
+│       │   ├── error.ts
+│       │   └── validation.ts
+│       ├── auth/
+│       │   ├── middleware.ts
+│       │   └── session.ts
+│       └── utils/
+├── ARCHITECTURE.md
+├── .copilot-instructions.md
+├── drizzle.config.ts
+├── wrangler.jsonc
+└── .dev.vars
+```
+
+---
+
+## 🗄️ データモデル
+
+### テーブル構成
+
+#### 1. categories (大カテゴリ)
+- `id`, `name` (unique), `createdAt`, `updatedAt`, `deletedAt`
+
+#### 2. subcategories (中項目)
+- `id`, `categoryId` (FK), `name`, `createdAt`, `updatedAt`, `deletedAt`
+
+#### 3. authors (人物)
+- `id`, `name` (unique), `createdAt`, `updatedAt`, `deletedAt`
+
+#### 4. quotes (名言)
+- `id`, `text`, `textJa`, `authorId` (FK), `subcategoryId` (FK), `background`, `createdAt`, `updatedAt`, `deletedAt`
+
+#### 5. daily_quotes (日替わり30件)
+- `id`, `date` (unique, YYYY-MM-DD), `quoteId` (FK), `createdAt`
+
+#### 6. sessions (認証用)
+- `id`, `token` (unique), `expiresAt`, `createdAt`
+
+---
+
+## 🎯 API 設計方針
+
+### REST エンドポイント
+
+#### カテゴリ
+- `GET /api/categories` - 全カテゴリ取得
+- `POST /api/categories` - カテゴリ作成（管理画面のみ）
+- `PUT /api/categories/[id]` - 更新
+- `DELETE /api/categories/[id]` - 削除
+
+#### 中項目・人物・名言
+- `GET /api/subcategories` - 取得
+- `POST /api/subcategories` - 作成（管理画面のみ）
+- `PUT /api/authors/[id]` - 更新
+- `DELETE /api/quotes/[id]` - 削除
+
+#### 日替わり名言
+- `GET /api/daily-quotes` - 本日の30件を取得
+- `GET /api/daily-quotes?date=YYYY-MM-DD` - 指定日の30件を取得
+
+#### 認証
+- `POST /api/admin/login` - ログイン
+- `POST /api/admin/logout` - ログアウト
+
+---
+
+## 🔄 環境別設定
+
+### 開発環境
+- **DB**: `better-sqlite` + `./local.db`
+- **マイグレーション**: `npm run db:push`
+
+### 本番環境
+- **DB**: Cloudflare D1 (d1-http)
+- **デプロイ**: `npm run deploy`
+
+---
+
+**最終更新**: 2025-11-10

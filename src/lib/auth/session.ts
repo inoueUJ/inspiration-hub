@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { db } from "@/lib/db/client";
+import { getDb } from "@/lib/db/client";
 import { sessions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import type { Session } from "@/lib/db/schema";
@@ -14,6 +14,7 @@ export async function createSession(): Promise<{
   token: string;
   session: Session;
 }> {
+  const db = await getDb();
   const token = crypto.randomUUID();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
@@ -49,6 +50,7 @@ export async function checkSession(): Promise<Session | null> {
     return null;
   }
 
+  const db = await getDb();
   const [session] = await db
     .select()
     .from(sessions)
@@ -74,6 +76,7 @@ export async function deleteSession(token?: string): Promise<void> {
   const sessionToken = token || cookieStore.get(COOKIE_NAME)?.value;
 
   if (sessionToken) {
+    const db = await getDb();
     await db.delete(sessions).where(eq(sessions.token, sessionToken));
   }
 

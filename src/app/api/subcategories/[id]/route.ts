@@ -14,7 +14,7 @@ import { requireAuth } from "@/lib/auth/middleware"
 import { AppError } from "@/lib/api/error"
 
 interface RouteContext {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 /**
@@ -23,9 +23,10 @@ interface RouteContext {
  */
 export async function GET(
   request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   try {
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const subcategory = await getSubcategoryById(id)
 
@@ -50,11 +51,12 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   try {
     await requireAuth(request)
 
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const body = await request.json()
     const validated = updateSubcategorySchema.parse(body)
@@ -86,11 +88,12 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   try {
     await requireAuth(request)
 
+    const params = await context.params
     const { id } = idParamSchema.parse(params)
     const subcategory = await deleteSubcategory(id)
 

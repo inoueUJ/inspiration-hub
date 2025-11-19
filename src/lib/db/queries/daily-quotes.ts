@@ -1,4 +1,4 @@
-import { db } from "@/lib/db/client"
+import { getDb } from "@/lib/db/client"
 import {
   dailyQuotes,
   quotes,
@@ -12,6 +12,7 @@ import { eq, isNull, sql, and } from "drizzle-orm"
  * 日替わり名言を取得（特定日）
  */
 export async function getDailyQuotes(date?: string) {
+  const db = await getDb();
   const targetDate = date || new Date().toISOString().split("T")[0]
 
   const result = await db
@@ -37,7 +38,7 @@ export async function getDailyQuotes(date?: string) {
       )
     )
 
-  return result.map((row) => ({
+  return result.map((row: typeof result[0]) => ({
     ...row.quote,
     author: row.author,
     subcategory: {
@@ -51,6 +52,7 @@ export async function getDailyQuotes(date?: string) {
  * 日替わり名言を生成（バッチ処理用）
  */
 export async function generateDailyQuotes(date: string) {
+  const db = await getDb();
   // 既存のデータを削除
   await db.delete(dailyQuotes).where(eq(dailyQuotes.date, date))
 
@@ -67,7 +69,7 @@ export async function generateDailyQuotes(date: string) {
   }
 
   // daily_quotesに挿入
-  const insertData = randomQuotes.map((q) => ({
+  const insertData = randomQuotes.map((q: typeof randomQuotes[0]) => ({
     date,
     quoteId: q.id,
   }))
@@ -81,6 +83,7 @@ export async function generateDailyQuotes(date: string) {
  * 日替わり名言が存在するか確認
  */
 export async function checkDailyQuotesExist(date: string) {
+  const db = await getDb();
   const [result] = await db
     .select({ count: sql<number>`count(*)` })
     .from(dailyQuotes)

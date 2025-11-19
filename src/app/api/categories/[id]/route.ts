@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { eq, isNull } from "drizzle-orm";
-import { db } from "@/lib/db/client";
+import { getDb } from "@/lib/db/client";
 import { categories } from "@/lib/db/schema";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { updateCategorySchema, idParamSchema } from "@/lib/api/validation";
@@ -23,6 +23,7 @@ export async function PUT(
     const body = await request.json();
     const validated = updateCategorySchema.parse(body);
 
+    const db = await getDb();
     const [existingCategory] = await db
       .select()
       .from(categories)
@@ -77,6 +78,7 @@ export async function DELETE(
 
     const { id } = idParamSchema.parse(await params);
 
+    const db = await getDb();
     const [existingCategory] = await db
       .select()
       .from(categories)

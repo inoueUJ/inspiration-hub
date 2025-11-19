@@ -11,9 +11,20 @@ import * as schema from "./schema";
 
 let dbInstance: any = null;
 
-export function getDb(
-  env?: { DB: D1Database }
-) {
+/**
+ * Cloudflareコンテキストを取得
+ * 本番環境でのみ利用可能
+ */
+async function getCloudflareContext() {
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    return getCloudflareContext();
+  } catch (error) {
+    return null;
+  }
+}
+
+export async function getDb() {
   // 既存インスタンスがあれば再利用
   if (dbInstance) {
     return dbInstance;
@@ -21,13 +32,14 @@ export function getDb(
 
   if (process.env.NODE_ENV === "production") {
     // 本番環境：Cloudflare D1
-    if (!env?.DB) {
+    const context = await getCloudflareContext();
+    if (!context?.env?.DB) {
       throw new Error(
         "D1 database binding (DB) not found in production environment. " +
           "Please ensure d1_databases binding is configured in wrangler.jsonc"
       );
     }
-    dbInstance = drizzleD1(env.DB, { schema });
+    dbInstance = drizzleD1(context.env.DB, { schema });
   } else {
     // 開発環境：better-sqlite3
     try {
@@ -54,7 +66,7 @@ export function getDb(
 /**
  * サーバーコンポーネント・API ルートで使用
  * 例：
- *   const db = getDb();
+ *   const db = await getDb();
  *   const quotes = await db.query.quotes.findMany();
  */
-export type Database = ReturnType<typeof getDb>;
+export type Database = Awaited<ReturnType<typeof getDb>>;
