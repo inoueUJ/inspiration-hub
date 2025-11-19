@@ -26,7 +26,8 @@
 		{
 			"binding": "DB",
 			"database_name": "inspiration-hub",
-			"database_id": "ca434974-8abd-41bc-aef5-e3ad17bd4351"
+			"database_id": "ca434974-8abd-41bc-aef5-e3ad17bd4351",
+			"migrations_dir": "src/lib/db/migrations"
 		}
 	],
 	/**
