@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+.open-next/
+out/
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.production
+.dev.vars
+
+# IDE
+.idea/
+
+# Logs
+*.log
+
+# Database files (local)
+*.db
+*.sqlite
+
+# Generated files
+cloudflare-env.d.ts
+
+# Package lock (can be large)
+package-lock.json
+
+# Test coverage
+coverage/
