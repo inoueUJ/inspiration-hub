@@ -100,12 +100,13 @@ export const quotes = sqliteTable("quotes", {
 /**
  * 日替わり名言テーブル
  * 毎日0時（UTC）にバッチ処理でランダム30件を選定
+ * 1日あたり30件のレコードが保存される
  */
 export const dailyQuotes = sqliteTable(
   "daily_quotes",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    date: text("date").notNull().unique(), // YYYY-MM-DD 形式
+    date: text("date").notNull(), // YYYY-MM-DD 形式（UNIQUE制約削除）
     quoteId: integer("quote_id")
       .notNull()
       .references(() => quotes.id, { onDelete: "cascade" }),
@@ -115,7 +116,11 @@ export const dailyQuotes = sqliteTable(
   },
   (table) => {
     return {
-      dateIdx: uniqueIndex("daily_quotes_date_idx").on(table.date),
+      // 複合UNIQUE制約: 同じ日に同じ名言は1回のみ
+      dateQuoteIdx: uniqueIndex("daily_quotes_date_quote_idx").on(
+        table.date,
+        table.quoteId
+      ),
     };
   }
 );
