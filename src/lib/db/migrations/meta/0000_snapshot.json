@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "89cd176a-0a2b-482f-8700-acf1064bae07",
+  "id": "5e270f23-ba74-4f88-a6a2-3ef8257fa192",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "authors": {
@@ -162,17 +162,11 @@
         }
       },
       "indexes": {
-        "daily_quotes_date_unique": {
-          "name": "daily_quotes_date_unique",
+        "daily_quotes_date_quote_idx": {
+          "name": "daily_quotes_date_quote_idx",
           "columns": [
-            "date"
-          ],
-          "isUnique": true
-        },
-        "daily_quotes_date_idx": {
-          "name": "daily_quotes_date_idx",
-          "columns": [
-            "date"
+            "date",
+            "quote_id"
           ],
           "isUnique": true
         }

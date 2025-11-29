@@ -26,8 +26,7 @@ CREATE TABLE `daily_quotes` (
 	FOREIGN KEY (`quote_id`) REFERENCES `quotes`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `daily_quotes_date_unique` ON `daily_quotes` (`date`);--> statement-breakpoint
-CREATE UNIQUE INDEX `daily_quotes_date_idx` ON `daily_quotes` (`date`);--> statement-breakpoint
+CREATE UNIQUE INDEX `daily_quotes_date_quote_idx` ON `daily_quotes` (`date`,`quote_id`);--> statement-breakpoint
 CREATE TABLE `quotes` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`text` text NOT NULL,

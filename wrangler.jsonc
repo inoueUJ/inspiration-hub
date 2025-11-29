@@ -36,6 +36,14 @@
 	 */
 	"vars": {
 		"DATABASE_URL": "local.db"
+	},
+	/**
+	 * Cron Triggers
+	 * 日替わり名言を毎日0時（UTC）に自動生成
+	 * Docs: https://developers.cloudflare.com/workers/configuration/cron-triggers/
+	 */
+	"triggers": {
+		"crons": ["0 0 * * *"]
 	}
 	/**
 	 * Smart Placement
