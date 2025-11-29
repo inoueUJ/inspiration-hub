@@ -44,7 +44,7 @@
 	 */
 	"triggers": {
 		"crons": ["0 0 * * *"]
-	}
+	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

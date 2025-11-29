@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  index,
   integer,
   sqliteTable,
   text,
@@ -121,6 +122,8 @@ export const dailyQuotes = sqliteTable(
         table.date,
         table.quoteId
       ),
+      // 日付単体での検索効率化用インデックス
+      dateIdx: index("daily_quotes_date_idx").on(table.date),
     };
   }
 );
@@ -172,73 +175,102 @@ export type NewSession = typeof sessions.$inferInsert;
  * 著者画像テーブル
  * 1人の著者に複数枚の画像を紐付け（Cloudflare R2）
  */
-export const authorImages = sqliteTable("author_images", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  authorId: integer("author_id")
-    .notNull()
-    .references(() => authors.id, { onDelete: "cascade" }),
-  imageUrl: text("image_url").notNull(), // Cloudflare R2 URL
-  imageType: text("image_type").notNull(), // "profile", "icon", "background"
-  isPrimary: integer("is_primary", { mode: "boolean" })
-    .default(false)
-    .notNull(),
-  altText: text("alt_text"), // アクセシビリティ用
-  displayOrder: integer("display_order").default(0).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .default(sql`(unixepoch('now'))`)
-    .notNull(),
-  deletedAt: integer("deleted_at", { mode: "timestamp" }),
-});
+export const authorImages = sqliteTable(
+  "author_images",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    authorId: integer("author_id")
+      .notNull()
+      .references(() => authors.id, { onDelete: "cascade" }),
+    imageUrl: text("image_url").notNull(), // Cloudflare R2 URL
+    imageType: text("image_type", { enum: ["profile", "icon", "background"] }).notNull(),
+    isPrimary: integer("is_primary", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    altText: text("alt_text"), // アクセシビリティ用
+    displayOrder: integer("display_order").default(0).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch('now'))`)
+      .notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  },
+  (table) => {
+    return {
+      authorIdx: index("author_images_author_idx").on(table.authorId),
+      primaryIdx: index("author_images_primary_idx").on(
+        table.authorId,
+        table.isPrimary
+      ),
+    };
+  }
+);
 
 /**
  * 名言投稿テーブル（ユーザー投稿、管理者承認待ち）
  * 匿名投稿可能、スパム対策としてIPアドレス記録
  */
-export const quoteSubmissions = sqliteTable("quote_submissions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const quoteSubmissions = sqliteTable(
+  "quote_submissions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
 
-  // 投稿内容
-  text: text("text").notNull(),
-  textJa: text("text_ja"),
-  authorName: text("author_name").notNull(), // 既存著者名 or 新規著者名
-  categoryName: text("category_name"),
-  subcategoryName: text("subcategory_name"),
-  background: text("background"),
+    // 投稿内容
+    text: text("text").notNull(),
+    textJa: text("text_ja"),
+    authorName: text("author_name").notNull(), // 既存著者名 or 新規著者名
+    categoryName: text("category_name"),
+    subcategoryName: text("subcategory_name"),
+    background: text("background"),
 
-  // 投稿者情報（任意）
-  submitterEmail: text("submitter_email"),
-  submitterName: text("submitter_name"),
-  submitterIp: text("submitter_ip").notNull(), // スパム対策
+    // 投稿者情報（任意）
+    submitterEmail: text("submitter_email"),
+    submitterName: text("submitter_name"),
+    // IPアドレスはハッシュ化して保存（GDPR対応・スパム対策）
+    submitterIp: text("submitter_ip").notNull(),
 
-  // 審査ステータス
-  status: text("status").notNull().default("pending"), // "pending", "approved", "rejected", "editing"
+    // 審査ステータス
+    status: text("status", {
+      enum: ["pending", "approved", "rejected", "editing"],
+    })
+      .notNull()
+      .default("pending"),
 
-  // 管理者による編集
-  editedText: text("edited_text"),
-  editedTextJa: text("edited_text_ja"),
-  editedAuthorName: text("edited_author_name"),
-  editedCategoryName: text("edited_category_name"),
-  editedSubcategoryName: text("edited_subcategory_name"),
-  editedBackground: text("edited_background"),
-  adminFeedback: text("admin_feedback"), // 添削コメント・却下理由
+    // 管理者による編集
+    editedText: text("edited_text"),
+    editedTextJa: text("edited_text_ja"),
+    editedAuthorName: text("edited_author_name"),
+    editedCategoryName: text("edited_category_name"),
+    editedSubcategoryName: text("edited_subcategory_name"),
+    editedBackground: text("edited_background"),
+    adminFeedback: text("admin_feedback"), // 添削コメント・却下理由
 
-  // 承認情報
-  reviewedBy: text("reviewed_by"), // 管理者名
-  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+    // 承認情報
+    reviewedBy: text("reviewed_by"), // 管理者名
+    reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
 
-  // 承認後のリンク（承認されたら実際のquoteIdが設定される）
-  approvedQuoteId: integer("approved_quote_id").references(() => quotes.id, {
-    onDelete: "set null",
-  }),
+    // 承認後のリンク（承認されたら実際のquoteIdが設定される）
+    approvedQuoteId: integer("approved_quote_id").references(() => quotes.id, {
+      onDelete: "set null",
+    }),
 
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .default(sql`(unixepoch('now'))`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .default(sql`(unixepoch('now'))`)
-    .notNull(),
-  deletedAt: integer("deleted_at", { mode: "timestamp" }),
-});
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch('now'))`)
+      .notNull(),
+    // updatedAtはDrizzle ORMのSQLiteでは自動更新トリガーがないため、
+    // アプリケーションレイヤーで更新時に明示的に設定する必要があります
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .default(sql`(unixepoch('now'))`)
+      .notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  },
+  (table) => {
+    return {
+      statusIdx: index("quote_submissions_status_idx").on(table.status),
+      submitterIpIdx: index("quote_submissions_ip_idx").on(table.submitterIp),
+      createdAtIdx: index("quote_submissions_created_idx").on(table.createdAt),
+    };
+  }
+);
 
 /**
  * ユーザーテーブル（AI推薦機能用）
@@ -260,19 +292,41 @@ export const users = sqliteTable("users", {
  * ユーザーと名言の相互作用テーブル（AI推薦用）
  * いいね、閲覧、シェアなどの履歴を記録
  */
-export const userQuoteInteractions = sqliteTable("user_quote_interactions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  quoteId: integer("quote_id")
-    .notNull()
-    .references(() => quotes.id, { onDelete: "cascade" }),
-  interactionType: text("interaction_type").notNull(), // "like", "view", "share", "favorite"
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .default(sql`(unixepoch('now'))`)
-    .notNull(),
-});
+export const userQuoteInteractions = sqliteTable(
+  "user_quote_interactions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    quoteId: integer("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    interactionType: text("interaction_type", {
+      enum: ["like", "view", "share", "favorite"],
+    }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .default(sql`(unixepoch('now'))`)
+      .notNull(),
+  },
+  (table) => {
+    return {
+      // 重複インタラクション防止（同一ユーザー・名言・タイプの組み合わせ）
+      userQuoteTypeIdx: uniqueIndex("user_quote_interactions_unique_idx").on(
+        table.userId,
+        table.quoteId,
+        table.interactionType
+      ),
+      userIdx: index("user_interactions_user_idx").on(table.userId),
+      quoteIdx: index("user_interactions_quote_idx").on(table.quoteId),
+      typeIdx: index("user_interactions_type_idx").on(table.interactionType),
+      userTypeIdx: index("user_interactions_user_type_idx").on(
+        table.userId,
+        table.interactionType
+      ),
+    };
+  }
+);
 
 export type AuthorImage = typeof authorImages.$inferSelect;
 export type NewAuthorImage = typeof authorImages.$inferInsert;
