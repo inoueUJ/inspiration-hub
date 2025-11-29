@@ -84,8 +84,18 @@ src/
 │   │   │       └── route.ts
 │   │   ├── daily-quotes/
 │   │   │   └── route.ts                   # 日替わり名言取得
-│   │   └── search/
-│   │       └── route.ts                   # 検索API
+│   │   ├── search/
+│   │   │   └── route.ts                   # 検索API
+│   │   ├── submissions/                   # 名言投稿API (将来機能)
+│   │   │   ├── route.ts                   # 投稿一覧・作成
+│   │   │   └── [id]/
+│   │   │       └── route.ts               # 承認・却下・編集
+│   │   ├── author-images/                 # 著者画像API (将来機能)
+│   │   │   ├── route.ts                   # 画像一覧・アップロード
+│   │   │   └── [id]/
+│   │   │       └── route.ts               # 画像更新・削除
+│   │   └── recommendations/               # AI推薦API (将来機能)
+│   │       └── route.ts                   # ユーザーへの推薦名言取得
 │   ├── layout.tsx                         # ルートレイアウト
 │   ├── globals.css                        # グローバルスタイル
 │   └── not-found.tsx                      # グローバル404
@@ -136,7 +146,11 @@ src/
 │   │   │   ├── categories.ts
 │   │   │   ├── quotes.ts
 │   │   │   ├── authors.ts
-│   │   │   └── daily-quotes.ts
+│   │   │   ├── daily-quotes.ts
+│   │   │   ├── submissions.ts            # 将来機能
+│   │   │   ├── author-images.ts          # 将来機能
+│   │   │   ├── users.ts                  # 将来機能
+│   │   │   └── recommendations.ts        # 将来機能
 │   │   └── migrations/                    # マイグレーション
 │   ├── hooks/                             # カスタムフック (Client)
 │   │   ├── use-quote-dialog.ts
@@ -152,6 +166,216 @@ src/
     ├── category.ts                        # カテゴリ型
     ├── author.ts                          # 人物型
     └── api.ts                             # APIレスポンス型
+```
+
+## データベース設計
+
+### 実装済みテーブル（基本機能）
+
+#### 1. categories (大カテゴリ)
+```typescript
+id: integer (PK)
+name: text (UNIQUE)
+createdAt: timestamp
+updatedAt: timestamp
+deletedAt: timestamp (Soft Delete)
+```
+**用途**: 偉人、アニメ、映画などの最上位カテゴリ
+
+#### 2. subcategories (中項目)
+```typescript
+id: integer (PK)
+categoryId: integer (FK → categories.id)
+name: text
+createdAt: timestamp
+updatedAt: timestamp
+deletedAt: timestamp
+```
+**用途**: カテゴリ内の詳細分類（例：偉人→哲学者、数学者）
+
+#### 3. authors (人物)
+```typescript
+id: integer (PK)
+name: text (UNIQUE)
+createdAt: timestamp
+updatedAt: timestamp
+deletedAt: timestamp
+```
+**用途**: 名言の著者・キャラクター情報
+
+#### 4. quotes (名言)
+```typescript
+id: integer (PK)
+text: text (原文)
+textJa: text (日本語翻訳、任意)
+authorId: integer (FK → authors.id)
+subcategoryId: integer (FK → subcategories.id)
+background: text (背景説明、任意)
+createdAt: timestamp
+updatedAt: timestamp
+deletedAt: timestamp
+```
+**用途**: 名言本体と関連メタデータ
+
+#### 5. daily_quotes (日替わり名言)
+```typescript
+id: integer (PK)
+date: text (YYYY-MM-DD形式)
+quoteId: integer (FK → quotes.id)
+createdAt: timestamp
+```
+**重要**: `(date, quoteId)` の複合UNIQUE制約により、1日30件の名言を保存可能
+
+**用途**: Cloudflare Cron Triggers で毎日0時（UTC）にランダム30件を生成
+
+#### 6. sessions (認証用)
+```typescript
+id: integer (PK)
+token: text (UNIQUE)
+expiresAt: timestamp
+createdAt: timestamp
+```
+**用途**: 管理画面用のCookieベース認証
+
+### 将来機能テーブル（設計完了、実装予定）
+
+#### 7. author_images (著者画像)
+```typescript
+id: integer (PK)
+authorId: integer (FK → authors.id)
+imageUrl: text (Cloudflare R2 URL)
+imageType: text ("profile" | "icon" | "background")
+isPrimary: boolean (デフォルト: false)
+altText: text (アクセシビリティ用、任意)
+displayOrder: integer (デフォルト: 0)
+createdAt: timestamp
+deletedAt: timestamp
+```
+**用途**:
+- Cloudflare R2に保存された著者の画像を管理
+- 1人の著者に複数枚の画像を紐付け可能
+- プロフィール画像、アイコン、背景画像など用途別に管理
+
+**実装時の考慮事項**:
+- Cloudflare R2へのアップロードAPI実装
+- 画像最適化（Next.js Image Optimization）
+- 主画像（isPrimary）の排他制御
+
+#### 8. quote_submissions (ユーザー投稿名言)
+```typescript
+id: integer (PK)
+
+// 投稿内容
+text: text
+textJa: text (任意)
+authorName: text (既存著者名 or 新規著者名)
+categoryName: text (任意)
+subcategoryName: text (任意)
+background: text (任意)
+
+// 投稿者情報（匿名可）
+submitterEmail: text (任意)
+submitterName: text (任意)
+submitterIp: text (スパム対策用)
+
+// 審査ステータス
+status: text ("pending" | "approved" | "rejected" | "editing")
+
+// 管理者による編集
+editedText: text (任意)
+editedTextJa: text (任意)
+editedAuthorName: text (任意)
+editedCategoryName: text (任意)
+editedSubcategoryName: text (任意)
+editedBackground: text (任意)
+adminFeedback: text (添削コメント・却下理由)
+
+// 承認情報
+reviewedBy: text (管理者名)
+reviewedAt: timestamp
+approvedQuoteId: integer (FK → quotes.id, SET NULL)
+
+createdAt: timestamp
+updatedAt: timestamp
+deletedAt: timestamp
+```
+**用途**:
+- 一般ユーザーが名言を投稿（匿名可）
+- 管理者が承認・編集・添削するワークフロー
+- 承認後は `quotes` テーブルに正式登録
+
+**ワークフロー**:
+1. ユーザー投稿 → `status: "pending"`
+2. 管理者が編集開始 → `status: "editing"`
+3. 承認 → `status: "approved"`, `approvedQuoteId` にリンク
+4. 却下 → `status: "rejected"`, `adminFeedback` に理由記載
+
+**セキュリティ考慮事項**:
+- IPアドレスのハッシュ化（GDPR対応）
+- レート制限（同一IPからの連続投稿防止）
+- バリデーション強化（XSS対策）
+
+#### 9. users (ユーザー - AI推薦用)
+```typescript
+id: integer (PK)
+userId: text (UUID, UNIQUE)
+email: text (UNIQUE, 任意)
+preferences: text (JSON形式)
+createdAt: timestamp
+lastActiveAt: timestamp
+deletedAt: timestamp
+```
+**用途**:
+- 匿名ユーザーにもUUIDを割り当て（Cookie/LocalStorage）
+- カテゴリ嗜好、好きな著者などをJSON形式で保存
+- AI推薦エンジンのためのユーザープロファイル
+
+**preferences JSONスキーマ例**:
+```json
+{
+  "favoriteCategories": [1, 3, 5],
+  "favoriteAuthors": [2, 7, 12],
+  "preferredLanguage": "ja",
+  "theme": "dark"
+}
+```
+
+#### 10. user_quote_interactions (ユーザー行動履歴 - AI推薦用)
+```typescript
+id: integer (PK)
+userId: integer (FK → users.id)
+quoteId: integer (FK → quotes.id)
+interactionType: text ("like" | "view" | "share" | "favorite")
+createdAt: timestamp
+```
+**用途**:
+- ユーザーの行動履歴を記録
+- AI推薦エンジンの学習データとして活用
+- 人気の名言、トレンド分析にも利用可能
+
+**推奨される最適化**:
+- `(userId, quoteId, interactionType)` 複合UNIQUE制約
+- `userId`, `quoteId`, `createdAt` にインデックス
+- 古いデータの定期削除（6ヶ月以上前など）
+
+### テーブル間のリレーション
+
+```
+categories (1) ─┬─ (N) subcategories
+                │
+subcategories (1) ─── (N) quotes
+                │
+authors (1) ─────┼─── (N) quotes
+                │      │
+                │      ├─── (N) daily_quotes
+                │      │
+                │      └─── (N) user_quote_interactions
+                │
+                └─── (N) author_images
+
+users (1) ──── (N) user_quote_interactions
+
+quote_submissions (1) ─── (0-1) quotes (approvedQuoteId)
 ```
 
 ## Server Components vs Client Components
@@ -446,6 +670,260 @@ export default async function Page({ params }: PageProps) {
   const subcategories = await getSubcategories(category.id)
 
   return (/* ... */)
+}
+```
+
+### 将来機能のデータフェッチングパターン
+
+#### ユーザー投稿名言の管理画面クエリ
+```tsx
+// src/lib/db/queries/submissions.ts
+import { db } from '../client'
+import { quoteSubmissions } from '../schema'
+import { eq, isNull, desc } from 'drizzle-orm'
+
+/**
+ * 承認待ち投稿を取得
+ */
+export async function getPendingSubmissions() {
+  return await db
+    .select()
+    .from(quoteSubmissions)
+    .where(
+      and(
+        eq(quoteSubmissions.status, 'pending'),
+        isNull(quoteSubmissions.deletedAt)
+      )
+    )
+    .orderBy(desc(quoteSubmissions.createdAt))
+}
+
+/**
+ * 投稿を承認して quotes テーブルに追加
+ */
+export async function approveSubmission(
+  submissionId: number,
+  reviewedBy: string
+) {
+  const [submission] = await db
+    .select()
+    .from(quoteSubmissions)
+    .where(eq(quoteSubmissions.id, submissionId))
+
+  if (!submission) return null
+
+  // 1. quotes テーブルに新規レコード作成
+  const [newQuote] = await db
+    .insert(quotes)
+    .values({
+      text: submission.editedText || submission.text,
+      textJa: submission.editedTextJa || submission.textJa,
+      authorId: /* 著者IDの取得・作成ロジック */,
+      subcategoryId: /* サブカテゴリIDの取得・作成ロジック */,
+      background: submission.editedBackground || submission.background,
+    })
+    .returning()
+
+  // 2. 投稿ステータスを更新
+  const [updated] = await db
+    .update(quoteSubmissions)
+    .set({
+      status: 'approved',
+      approvedQuoteId: newQuote.id,
+      reviewedBy,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(quoteSubmissions.id, submissionId))
+    .returning()
+
+  return { submission: updated, quote: newQuote }
+}
+```
+
+#### 著者画像の取得と管理
+```tsx
+// src/lib/db/queries/author-images.ts
+import { db } from '../client'
+import { authorImages, authors } from '../schema'
+import { eq, isNull, and, desc } from 'drizzle-orm'
+
+/**
+ * 著者の全画像を取得（表示順にソート）
+ */
+export async function getAuthorImages(authorId: number) {
+  return await db
+    .select()
+    .from(authorImages)
+    .where(
+      and(
+        eq(authorImages.authorId, authorId),
+        isNull(authorImages.deletedAt)
+      )
+    )
+    .orderBy(desc(authorImages.isPrimary), authorImages.displayOrder)
+}
+
+/**
+ * 著者のプライマリ画像を取得
+ */
+export async function getPrimaryAuthorImage(authorId: number) {
+  const [image] = await db
+    .select()
+    .from(authorImages)
+    .where(
+      and(
+        eq(authorImages.authorId, authorId),
+        eq(authorImages.isPrimary, true),
+        isNull(authorImages.deletedAt)
+      )
+    )
+    .limit(1)
+
+  return image
+}
+
+/**
+ * 画像をプライマリに設定（他の画像のプライマリフラグを解除）
+ */
+export async function setPrimaryImage(imageId: number, authorId: number) {
+  // トランザクション処理
+  await db.transaction(async (tx) => {
+    // 1. 同じ著者の全画像のプライマリフラグを解除
+    await tx
+      .update(authorImages)
+      .set({ isPrimary: false })
+      .where(eq(authorImages.authorId, authorId))
+
+    // 2. 指定画像をプライマリに設定
+    await tx
+      .update(authorImages)
+      .set({ isPrimary: true })
+      .where(eq(authorImages.id, imageId))
+  })
+}
+```
+
+#### AI推薦のためのユーザー行動記録
+```tsx
+// src/lib/db/queries/recommendations.ts
+import { db } from '../client'
+import { userQuoteInteractions, users, quotes } from '../schema'
+import { eq, and, desc, sql } from 'drizzle-orm'
+
+/**
+ * ユーザーの行動を記録
+ */
+export async function recordInteraction(
+  userId: number,
+  quoteId: number,
+  interactionType: 'like' | 'view' | 'share' | 'favorite'
+) {
+  const [interaction] = await db
+    .insert(userQuoteInteractions)
+    .values({
+      userId,
+      quoteId,
+      interactionType,
+    })
+    .returning()
+
+  // ユーザーの lastActiveAt を更新
+  await db
+    .update(users)
+    .set({ lastActiveAt: new Date() })
+    .where(eq(users.id, userId))
+
+  return interaction
+}
+
+/**
+ * ユーザーが「いいね」した名言を取得
+ */
+export async function getUserLikedQuotes(userId: number, limit = 30) {
+  return await db
+    .select({
+      quote: quotes,
+      likedAt: userQuoteInteractions.createdAt,
+    })
+    .from(userQuoteInteractions)
+    .innerJoin(quotes, eq(quotes.id, userQuoteInteractions.quoteId))
+    .where(
+      and(
+        eq(userQuoteInteractions.userId, userId),
+        eq(userQuoteInteractions.interactionType, 'like')
+      )
+    )
+    .orderBy(desc(userQuoteInteractions.createdAt))
+    .limit(limit)
+}
+
+/**
+ * 人気の名言を取得（いいね数ベース）
+ */
+export async function getPopularQuotes(limit = 30) {
+  return await db
+    .select({
+      quote: quotes,
+      likeCount: sql<number>`count(*)`,
+    })
+    .from(quotes)
+    .innerJoin(
+      userQuoteInteractions,
+      eq(userQuoteInteractions.quoteId, quotes.id)
+    )
+    .where(eq(userQuoteInteractions.interactionType, 'like'))
+    .groupBy(quotes.id)
+    .orderBy(desc(sql`count(*)`))
+    .limit(limit)
+}
+
+/**
+ * ユーザーの嗜好に基づく推薦（簡易版）
+ * 本格的なAI推薦は将来実装
+ */
+export async function getRecommendedQuotes(userId: number, limit = 10) {
+  // 1. ユーザーがいいねした名言のカテゴリを取得
+  const likedCategories = await db
+    .select({ categoryId: subcategories.categoryId })
+    .from(userQuoteInteractions)
+    .innerJoin(quotes, eq(quotes.id, userQuoteInteractions.quoteId))
+    .innerJoin(subcategories, eq(subcategories.id, quotes.subcategoryId))
+    .where(
+      and(
+        eq(userQuoteInteractions.userId, userId),
+        eq(userQuoteInteractions.interactionType, 'like')
+      )
+    )
+    .groupBy(subcategories.categoryId)
+    .limit(3)
+
+  const categoryIds = likedCategories.map((c) => c.categoryId)
+
+  // 2. 同じカテゴリのまだ見ていない名言をランダムに取得
+  return await db
+    .select()
+    .from(quotes)
+    .innerJoin(subcategories, eq(subcategories.id, quotes.subcategoryId))
+    .where(
+      and(
+        inArray(subcategories.categoryId, categoryIds),
+        // まだインタラクションしていない名言
+        notExists(
+          db
+            .select()
+            .from(userQuoteInteractions)
+            .where(
+              and(
+                eq(userQuoteInteractions.userId, userId),
+                eq(userQuoteInteractions.quoteId, quotes.id)
+              )
+            )
+        )
+      )
+    )
+    .orderBy(sql`RANDOM()`)
+    .limit(limit)
 }
 ```
 
