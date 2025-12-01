@@ -77,7 +77,7 @@ inspiration-hub/
 
 ## 🗄️ データモデル
 
-### テーブル構成
+### 基本機能テーブル（実装済み）
 
 #### 1. categories (大カテゴリ)
 - `id`, `name` (unique), `createdAt`, `updatedAt`, `deletedAt`
@@ -92,10 +92,35 @@ inspiration-hub/
 - `id`, `text`, `textJa`, `authorId` (FK), `subcategoryId` (FK), `background`, `createdAt`, `updatedAt`, `deletedAt`
 
 #### 5. daily_quotes (日替わり30件)
-- `id`, `date` (unique, YYYY-MM-DD), `quoteId` (FK), `createdAt`
+- `id`, `date` (YYYY-MM-DD), `quoteId` (FK), `createdAt`
+- **重要:** `(date, quoteId)` の複合UNIQUE制約により、1日30件の名言を保存可能
 
 #### 6. sessions (認証用)
 - `id`, `token` (unique), `expiresAt`, `createdAt`
+
+### 将来機能テーブル（設計完了、実装予定）
+
+#### 7. author_images (著者画像)
+- `id`, `authorId` (FK), `imageUrl`, `imageType`, `isPrimary`, `altText`, `displayOrder`, `createdAt`, `deletedAt`
+- **用途:** Cloudflare R2に保存された画像、1人の著者に複数枚の画像を紐付け
+
+#### 8. quote_submissions (ユーザー投稿)
+- `id`, `text`, `textJa`, `authorName`, `categoryName`, `subcategoryName`, `background`
+- `submitterEmail`, `submitterName`, `submitterIp`
+- `status` (pending/approved/rejected/editing)
+- `editedText`, `editedTextJa`, `editedAuthorName`, `editedCategoryName`, `editedSubcategoryName`, `editedBackground`
+- `adminFeedback`, `reviewedBy`, `reviewedAt`, `approvedQuoteId` (FK)
+- `createdAt`, `updatedAt`, `deletedAt`
+- **用途:** 匿名ユーザーが名言を投稿、管理者が承認・編集・添削するワークフロー
+
+#### 9. users (ユーザー - AI推薦用)
+- `id`, `userId` (UUID, unique), `email` (unique), `preferences` (JSON)
+- `createdAt`, `lastActiveAt`, `deletedAt`
+- **用途:** 匿名ユーザーにもUUIDを割り当て、カテゴリ嗜好・好きな著者などを保存
+
+#### 10. user_quote_interactions (ユーザー行動履歴 - AI推薦用)
+- `id`, `userId` (FK), `quoteId` (FK), `interactionType` (like/view/share/favorite), `createdAt`
+- **用途:** ユーザーの行動履歴を記録し、AI推薦エンジンの学習データとして活用
 
 ---
 

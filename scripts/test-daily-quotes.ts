@@ -1,4 +1,9 @@
-import { generateDailyQuotes, getDailyQuotes } from "../src/lib/db/queries/daily-quotes"
+import {
+  generateDailyQuotes,
+  getDailyQuotes,
+} from "../src/lib/db/queries/daily-quotes"
+
+const EXPECTED_DAILY_QUOTES = 30
 
 async function test() {
   console.log("📅 Testing daily quotes generation...")
@@ -11,10 +16,23 @@ async function test() {
   const count = await generateDailyQuotes(today)
   console.log(`✅ Generated ${count} daily quotes`)
 
+  // 生成数のバリデーション
+  if (count !== EXPECTED_DAILY_QUOTES) {
+    console.warn(
+      `⚠️ Expected ${EXPECTED_DAILY_QUOTES} quotes, but generated ${count}`
+    )
+  }
+
   // 2. 取得して確認
   console.log("\n2️⃣ Retrieving daily quotes...")
   const quotes = await getDailyQuotes(today)
   console.log(`✅ Retrieved ${quotes.length} quotes`)
+
+  // 取得数のバリデーション
+  if (quotes.length !== count) {
+    console.error(`❌ Mismatch: Generated ${count} but retrieved ${quotes.length}`)
+    process.exit(1)
+  }
 
   if (quotes.length > 0) {
     console.log("\n📝 First 3 quotes:")

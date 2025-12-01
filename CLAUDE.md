@@ -232,6 +232,8 @@ export async function GET() {
 
 ## データモデル
 
+### 基本機能（実装済み）
+
 ```
 categories（大カテゴリ）
 ├─ id, name, createdAt, updatedAt, deletedAt
@@ -247,9 +249,38 @@ quotes（名言）
 
 daily_quotes（日替わり30件）
 ├─ id, date, quoteId (FK), createdAt
+├─ 注: (date, quoteId) の複合UNIQUE制約により、1日30件の名言を保存可能
 
 sessions（認証用）
 ├─ id, token, expiresAt, createdAt
+```
+
+### 将来機能（設計完了、実装予定）
+
+```
+author_images（著者画像）
+├─ id, authorId (FK), imageUrl, imageType, isPrimary, altText, displayOrder
+├─ createdAt, deletedAt
+├─ 用途: Cloudflare R2に保存された画像URL、1人の著者に複数枚の画像を紐付け
+
+quote_submissions（ユーザー投稿）
+├─ id, text, textJa, authorName, categoryName, subcategoryName, background
+├─ submitterEmail, submitterName, submitterIp
+├─ status (pending/approved/rejected/editing)
+├─ editedText, editedTextJa, editedAuthorName, editedCategoryName, editedSubcategoryName, editedBackground
+├─ adminFeedback, reviewedBy, reviewedAt, approvedQuoteId (FK)
+├─ createdAt, updatedAt, deletedAt
+├─ 用途: ユーザーが名言を投稿、管理者が承認・編集・添削
+
+users（ユーザー - AI推薦用）
+├─ id, userId (UUID), email, preferences (JSON)
+├─ createdAt, lastActiveAt, deletedAt
+├─ 用途: 匿名ユーザーにもUUIDを割り当て、嗜好を保存
+
+user_quote_interactions（ユーザー行動履歴 - AI推薦用）
+├─ id, userId (FK), quoteId (FK), interactionType (like/view/share/favorite)
+├─ createdAt
+├─ 用途: AI推薦エンジンのためのデータ収集
 ```
 
 ## 禁止事項

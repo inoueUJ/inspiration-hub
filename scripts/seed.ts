@@ -66,10 +66,9 @@ async function seed() {
     .insert(subcategories)
     .values({ categoryId: category2.id, name: "主人公" })
     .returning()
-  const [sub5] = await db
+  await db
     .insert(subcategories)
     .values({ categoryId: category2.id, name: "サポートキャラ" })
-    .returning()
 
   // 映画
   const [sub6] = await db
@@ -86,10 +85,9 @@ async function seed() {
     .insert(subcategories)
     .values({ categoryId: category4.id, name: "起業家" })
     .returning()
-  const [sub9] = await db
+  await db
     .insert(subcategories)
     .values({ categoryId: category4.id, name: "経営者" })
-    .returning()
 
   // スポーツ
   const [sub10] = await db

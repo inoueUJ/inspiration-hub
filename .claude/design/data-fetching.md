@@ -274,6 +274,498 @@ export async function generateDailyQuotes(date: string) {
 }
 ```
 
+### 将来機能のクエリ実装
+
+#### Author Images Queries
+```typescript
+// src/lib/db/queries/author-images.ts
+import { db } from '@/lib/db/client'
+import { authorImages } from '@/lib/db/schema'
+import { eq, and, isNull, desc } from 'drizzle-orm'
+
+/**
+ * 著者の全画像を取得（表示順にソート）
+ */
+export async function getAuthorImages(authorId: number) {
+  return db
+    .select()
+    .from(authorImages)
+    .where(
+      and(
+        eq(authorImages.authorId, authorId),
+        isNull(authorImages.deletedAt)
+      )
+    )
+    .orderBy(desc(authorImages.isPrimary), authorImages.displayOrder)
+}
+
+/**
+ * 著者のプライマリ画像を取得
+ */
+export async function getPrimaryAuthorImage(authorId: number) {
+  const [image] = await db
+    .select()
+    .from(authorImages)
+    .where(
+      and(
+        eq(authorImages.authorId, authorId),
+        eq(authorImages.isPrimary, true),
+        isNull(authorImages.deletedAt)
+      )
+    )
+    .limit(1)
+
+  return image
+}
+
+/**
+ * 画像をプライマリに設定（トランザクション）
+ */
+export async function setPrimaryImage(imageId: number, authorId: number) {
+  await db.transaction(async (tx) => {
+    // 同じ著者の全画像のプライマリフラグを解除
+    await tx
+      .update(authorImages)
+      .set({ isPrimary: false })
+      .where(eq(authorImages.authorId, authorId))
+
+    // 指定画像をプライマリに設定
+    await tx
+      .update(authorImages)
+      .set({ isPrimary: true })
+      .where(eq(authorImages.id, imageId))
+  })
+}
+
+/**
+ * 画像を追加（Cloudflare R2 URL）
+ */
+export async function addAuthorImage(data: {
+  authorId: number
+  imageUrl: string
+  imageType: 'profile' | 'icon' | 'background'
+  altText?: string
+  isPrimary?: boolean
+}) {
+  const [image] = await db.insert(authorImages).values(data).returning()
+  return image
+}
+```
+
+#### Quote Submissions Queries
+```typescript
+// src/lib/db/queries/submissions.ts
+import { db } from '@/lib/db/client'
+import { quoteSubmissions, quotes, authors, subcategories } from '@/lib/db/schema'
+import { eq, and, isNull, desc, sql } from 'drizzle-orm'
+
+/**
+ * 承認待ち投稿を取得
+ */
+export async function getPendingSubmissions(limit = 50) {
+  return db
+    .select()
+    .from(quoteSubmissions)
+    .where(
+      and(
+        eq(quoteSubmissions.status, 'pending'),
+        isNull(quoteSubmissions.deletedAt)
+      )
+    )
+    .orderBy(desc(quoteSubmissions.createdAt))
+    .limit(limit)
+}
+
+/**
+ * 投稿をステータス別に取得
+ */
+export async function getSubmissionsByStatus(
+  status: 'pending' | 'approved' | 'rejected' | 'editing',
+  limit = 50
+) {
+  return db
+    .select()
+    .from(quoteSubmissions)
+    .where(
+      and(
+        eq(quoteSubmissions.status, status),
+        isNull(quoteSubmissions.deletedAt)
+      )
+    )
+    .orderBy(desc(quoteSubmissions.createdAt))
+    .limit(limit)
+}
+
+/**
+ * 投稿を作成（ユーザー投稿）
+ */
+export async function createSubmission(data: {
+  text: string
+  textJa?: string
+  authorName: string
+  categoryName?: string
+  subcategoryName?: string
+  background?: string
+  submitterEmail?: string
+  submitterName?: string
+  submitterIp: string
+}) {
+  const [submission] = await db
+    .insert(quoteSubmissions)
+    .values(data)
+    .returning()
+
+  return submission
+}
+
+/**
+ * 投稿を承認してquotesテーブルに追加（トランザクション）
+ */
+export async function approveSubmission(
+  submissionId: number,
+  reviewedBy: string,
+  overrides?: {
+    text?: string
+    textJa?: string
+    authorId: number
+    subcategoryId: number
+    background?: string
+  }
+) {
+  return await db.transaction(async (tx) => {
+    // 投稿を取得
+    const [submission] = await tx
+      .select()
+      .from(quoteSubmissions)
+      .where(eq(quoteSubmissions.id, submissionId))
+
+    if (!submission) {
+      throw new Error('Submission not found')
+    }
+
+    // quotesテーブルに新規レコード作成
+    const [newQuote] = await tx
+      .insert(quotes)
+      .values({
+        text: overrides?.text || submission.editedText || submission.text,
+        textJa: overrides?.textJa || submission.editedTextJa || submission.textJa,
+        authorId: overrides!.authorId,
+        subcategoryId: overrides!.subcategoryId,
+        background:
+          overrides?.background ||
+          submission.editedBackground ||
+          submission.background,
+      })
+      .returning()
+
+    // 投稿ステータスを更新
+    const [updated] = await tx
+      .update(quoteSubmissions)
+      .set({
+        status: 'approved',
+        approvedQuoteId: newQuote.id,
+        reviewedBy,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(quoteSubmissions.id, submissionId))
+      .returning()
+
+    return { submission: updated, quote: newQuote }
+  })
+}
+
+/**
+ * 投稿を却下
+ */
+export async function rejectSubmission(
+  submissionId: number,
+  reviewedBy: string,
+  adminFeedback: string
+) {
+  const [updated] = await db
+    .update(quoteSubmissions)
+    .set({
+      status: 'rejected',
+      reviewedBy,
+      reviewedAt: new Date(),
+      adminFeedback,
+      updatedAt: new Date(),
+    })
+    .where(eq(quoteSubmissions.id, submissionId))
+    .returning()
+
+  return updated
+}
+
+/**
+ * 投稿を編集モードに変更
+ */
+export async function editSubmission(
+  submissionId: number,
+  editedData: {
+    editedText?: string
+    editedTextJa?: string
+    editedAuthorName?: string
+    editedCategoryName?: string
+    editedSubcategoryName?: string
+    editedBackground?: string
+  }
+) {
+  const [updated] = await db
+    .update(quoteSubmissions)
+    .set({
+      ...editedData,
+      status: 'editing',
+      updatedAt: new Date(),
+    })
+    .where(eq(quoteSubmissions.id, submissionId))
+    .returning()
+
+  return updated
+}
+
+/**
+ * IPアドレスごとの投稿数をカウント（スパム対策）
+ */
+export async function getSubmissionCountByIp(ip: string, hours = 24) {
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000)
+
+  const [result] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(quoteSubmissions)
+    .where(
+      and(
+        eq(quoteSubmissions.submitterIp, ip),
+        sql`${quoteSubmissions.createdAt} > ${since}`
+      )
+    )
+
+  return result.count
+}
+```
+
+#### User & Recommendations Queries
+```typescript
+// src/lib/db/queries/users.ts
+import { db } from '@/lib/db/client'
+import { users, userQuoteInteractions, quotes, subcategories } from '@/lib/db/schema'
+import { eq, and, isNull, desc, sql, inArray, notExists } from 'drizzle-orm'
+
+/**
+ * ユーザーをUUIDで取得または作成
+ */
+export async function getOrCreateUser(userId: string) {
+  const [existingUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.userId, userId))
+    .limit(1)
+
+  if (existingUser) {
+    // lastActiveAtを更新
+    await db
+      .update(users)
+      .set({ lastActiveAt: new Date() })
+      .where(eq(users.id, existingUser.id))
+
+    return existingUser
+  }
+
+  // 新規ユーザー作成
+  const [newUser] = await db
+    .insert(users)
+    .values({
+      userId,
+      lastActiveAt: new Date(),
+    })
+    .returning()
+
+  return newUser
+}
+
+/**
+ * ユーザーの嗜好を更新
+ */
+export async function updateUserPreferences(
+  userId: string,
+  preferences: Record<string, any>
+) {
+  const [updated] = await db
+    .update(users)
+    .set({
+      preferences: JSON.stringify(preferences),
+      lastActiveAt: new Date(),
+    })
+    .where(eq(users.userId, userId))
+    .returning()
+
+  return updated
+}
+
+/**
+ * ユーザーの行動を記録
+ */
+export async function recordInteraction(
+  userId: number,
+  quoteId: number,
+  interactionType: 'like' | 'view' | 'share' | 'favorite'
+) {
+  const [interaction] = await db
+    .insert(userQuoteInteractions)
+    .values({
+      userId,
+      quoteId,
+      interactionType,
+    })
+    .returning()
+
+  return interaction
+}
+
+/**
+ * ユーザーが「いいね」した名言を取得
+ */
+export async function getUserLikedQuotes(userId: number, limit = 30) {
+  return db
+    .select({
+      quote: quotes,
+      likedAt: userQuoteInteractions.createdAt,
+    })
+    .from(userQuoteInteractions)
+    .innerJoin(quotes, eq(quotes.id, userQuoteInteractions.quoteId))
+    .where(
+      and(
+        eq(userQuoteInteractions.userId, userId),
+        eq(userQuoteInteractions.interactionType, 'like'),
+        isNull(quotes.deletedAt)
+      )
+    )
+    .orderBy(desc(userQuoteInteractions.createdAt))
+    .limit(limit)
+}
+
+/**
+ * 人気の名言を取得（いいね数ベース）
+ */
+export async function getPopularQuotes(limit = 30) {
+  return db
+    .select({
+      quote: quotes,
+      likeCount: sql<number>`count(*)`.as('like_count'),
+    })
+    .from(quotes)
+    .innerJoin(
+      userQuoteInteractions,
+      eq(userQuoteInteractions.quoteId, quotes.id)
+    )
+    .where(
+      and(
+        eq(userQuoteInteractions.interactionType, 'like'),
+        isNull(quotes.deletedAt)
+      )
+    )
+    .groupBy(quotes.id)
+    .orderBy(desc(sql`count(*)`))
+    .limit(limit)
+}
+
+/**
+ * ユーザーの嗜好に基づく推薦（簡易版）
+ * 本格的なAI推薦は将来実装
+ */
+export async function getRecommendedQuotes(userId: number, limit = 10) {
+  // 1. ユーザーがいいねした名言のカテゴリを取得
+  const likedCategories = await db
+    .select({ categoryId: subcategories.categoryId })
+    .from(userQuoteInteractions)
+    .innerJoin(quotes, eq(quotes.id, userQuoteInteractions.quoteId))
+    .innerJoin(subcategories, eq(subcategories.id, quotes.subcategoryId))
+    .where(
+      and(
+        eq(userQuoteInteractions.userId, userId),
+        eq(userQuoteInteractions.interactionType, 'like')
+      )
+    )
+    .groupBy(subcategories.categoryId)
+    .limit(3)
+
+  if (likedCategories.length === 0) {
+    // いいねがない場合は人気の名言を返す
+    return getPopularQuotes(limit)
+  }
+
+  const categoryIds = likedCategories.map((c) => c.categoryId)
+
+  // 2. 同じカテゴリのまだ見ていない名言をランダムに取得
+  return db
+    .select()
+    .from(quotes)
+    .innerJoin(subcategories, eq(subcategories.id, quotes.subcategoryId))
+    .where(
+      and(
+        inArray(subcategories.categoryId, categoryIds),
+        isNull(quotes.deletedAt),
+        // まだインタラクションしていない名言
+        notExists(
+          db
+            .select()
+            .from(userQuoteInteractions)
+            .where(
+              and(
+                eq(userQuoteInteractions.userId, userId),
+                eq(userQuoteInteractions.quoteId, quotes.id)
+              )
+            )
+        )
+      )
+    )
+    .orderBy(sql`RANDOM()`)
+    .limit(limit)
+}
+
+/**
+ * ユーザーの統計情報を取得
+ */
+export async function getUserStats(userId: number) {
+  const [likes, views, favorites] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(userQuoteInteractions)
+      .where(
+        and(
+          eq(userQuoteInteractions.userId, userId),
+          eq(userQuoteInteractions.interactionType, 'like')
+        )
+      ),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(userQuoteInteractions)
+      .where(
+        and(
+          eq(userQuoteInteractions.userId, userId),
+          eq(userQuoteInteractions.interactionType, 'view')
+        )
+      ),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(userQuoteInteractions)
+      .where(
+        and(
+          eq(userQuoteInteractions.userId, userId),
+          eq(userQuoteInteractions.interactionType, 'favorite')
+        )
+      ),
+  ])
+
+  return {
+    totalLikes: likes[0].count,
+    totalViews: views[0].count,
+    totalFavorites: favorites[0].count,
+  }
+}
+```
+
 ## Server Componentsでのデータフェッチング
 
 ### パターン1: ページコンポーネントで直接フェッチ
