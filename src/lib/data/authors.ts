@@ -1,7 +1,7 @@
 import { cache } from "react"
 import { getDb } from "@/lib/db/client"
 import { authors, quotes } from "@/lib/db/schema"
-import { eq, isNull, sql } from "drizzle-orm"
+import { eq, isNull, sql, and } from "drizzle-orm"
 import { CreateAuthorSchema, UpdateAuthorSchema } from "@/lib/validators/author"
 
 /**
@@ -26,8 +26,7 @@ export const getAuthorById = cache(async (id: number) => {
   const [author] = await db
     .select()
     .from(authors)
-    .where(eq(authors.id, id))
-    .where(isNull(authors.deletedAt))
+    .where(and(eq(authors.id, id), isNull(authors.deletedAt)))
     .limit(1)
 
   return author || null
@@ -45,8 +44,7 @@ export const getAuthorWithCount = cache(async (id: number) => {
   const [quoteCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(quotes)
-    .where(eq(quotes.authorId, id))
-    .where(isNull(quotes.deletedAt))
+    .where(and(eq(quotes.authorId, id), isNull(quotes.deletedAt)))
 
   return {
     ...author,
@@ -132,8 +130,7 @@ export async function updateAuthor(id: number, data: unknown) {
       ...validated,
       updatedAt: new Date(),
     })
-    .where(eq(authors.id, id))
-    .where(isNull(authors.deletedAt))
+    .where(and(eq(authors.id, id), isNull(authors.deletedAt)))
     .returning()
 
   return author || null
