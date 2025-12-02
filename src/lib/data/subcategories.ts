@@ -36,9 +36,12 @@ export const getSubcategoryById = cache(async (id: number) => {
     })
     .from(subcategories)
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(subcategories.id, id))
     .where(
-      and(isNull(subcategories.deletedAt), isNull(categories.deletedAt))
+      and(
+        eq(subcategories.id, id),
+        isNull(subcategories.deletedAt),
+        isNull(categories.deletedAt)
+      )
     )
     .limit(1)
 
@@ -59,8 +62,12 @@ export const getSubcategoriesByCategory = cache(async (categoryId: number) => {
   return db
     .select()
     .from(subcategories)
-    .where(eq(subcategories.categoryId, categoryId))
-    .where(isNull(subcategories.deletedAt))
+    .where(
+      and(
+        eq(subcategories.categoryId, categoryId),
+        isNull(subcategories.deletedAt)
+      )
+    )
     .orderBy(subcategories.name)
 })
 
@@ -76,8 +83,7 @@ export const getSubcategoryWithCount = cache(async (id: number) => {
   const [quoteCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(quotes)
-    .where(eq(quotes.subcategoryId, id))
-    .where(isNull(quotes.deletedAt))
+    .where(and(eq(quotes.subcategoryId, id), isNull(quotes.deletedAt)))
 
   return {
     ...subcategory,
@@ -124,8 +130,12 @@ export async function updateSubcategory(id: number, data: unknown) {
       ...validated,
       updatedAt: new Date(),
     })
-    .where(eq(subcategories.id, id))
-    .where(isNull(subcategories.deletedAt))
+    .where(
+      and(
+        eq(subcategories.id, id),
+        isNull(subcategories.deletedAt)
+      )
+    )
     .returning()
 
   return subcategory || null

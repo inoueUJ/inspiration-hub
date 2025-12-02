@@ -26,9 +26,9 @@ export const getQuoteById = cache(async (id: number) => {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(quotes.id, id))
     .where(
       and(
+        eq(quotes.id, id),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
@@ -103,9 +103,9 @@ export const getQuotesBySubcategory = cache(async (subcategoryId: number) => {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(quotes.subcategoryId, subcategoryId))
     .where(
       and(
+        eq(quotes.subcategoryId, subcategoryId),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
@@ -141,9 +141,9 @@ export const getQuotesByAuthor = cache(async (authorId: number) => {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(quotes.authorId, authorId))
     .where(
       and(
+        eq(quotes.authorId, authorId),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
@@ -179,9 +179,9 @@ export const getQuotesByCategory = cache(async (categoryId: number) => {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(categories.id, categoryId))
     .where(
       and(
+        eq(categories.id, categoryId),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
@@ -277,8 +277,7 @@ export async function updateQuote(id: number, data: unknown) {
       ...validated,
       updatedAt: new Date(),
     })
-    .where(eq(quotes.id, id))
-    .where(isNull(quotes.deletedAt))
+    .where(and(eq(quotes.id, id), isNull(quotes.deletedAt)))
     .returning()
 
   return quote || null

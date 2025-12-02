@@ -1,7 +1,7 @@
 import { cache } from "react"
 import { getDb } from "@/lib/db/client"
 import { categories, subcategories } from "@/lib/db/schema"
-import { eq, isNull, sql } from "drizzle-orm"
+import { eq, isNull, sql, and } from "drizzle-orm"
 import { CreateCategorySchema, UpdateCategorySchema } from "@/lib/validators/category"
 
 /**
@@ -26,8 +26,7 @@ export const getCategoryById = cache(async (id: number) => {
   const [category] = await db
     .select()
     .from(categories)
-    .where(eq(categories.id, id))
-    .where(isNull(categories.deletedAt))
+    .where(and(eq(categories.id, id), isNull(categories.deletedAt)))
     .limit(1)
 
   return category || null
@@ -45,8 +44,12 @@ export const getCategoryWithCounts = cache(async (id: number) => {
   const [subcategoryCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(subcategories)
-    .where(eq(subcategories.categoryId, id))
-    .where(isNull(subcategories.deletedAt))
+    .where(
+      and(
+        eq(subcategories.categoryId, id),
+        isNull(subcategories.deletedAt)
+      )
+    )
 
   return {
     ...category,
@@ -93,8 +96,7 @@ export async function updateCategory(id: number, data: unknown) {
       ...validated,
       updatedAt: new Date(),
     })
-    .where(eq(categories.id, id))
-    .where(isNull(categories.deletedAt))
+    .where(and(eq(categories.id, id), isNull(categories.deletedAt)))
     .returning()
 
   return category || null
