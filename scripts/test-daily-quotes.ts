@@ -1,7 +1,7 @@
 import {
   generateDailyQuotes,
   getDailyQuotes,
-} from "../src/lib/db/queries/daily-quotes"
+} from "../src/lib/data/daily-quotes"
 
 const EXPECTED_DAILY_QUOTES = 30
 
@@ -36,7 +36,7 @@ async function test() {
 
   if (quotes.length > 0) {
     console.log("\n📝 First 3 quotes:")
-    quotes.slice(0, 3).forEach((q, i) => {
+    quotes.slice(0, 3).forEach((q: typeof quotes[number], i: number) => {
       console.log(`${i + 1}. ${q.textJa || q.text} - ${q.author.name}`)
     })
   }
