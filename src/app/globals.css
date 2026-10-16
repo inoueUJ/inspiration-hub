@@ -1,64 +1,138 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-  }
+/* next-themes の class="dark" に追従させる */
+@custom-variant dark (&:is(.dark *));
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
+/*
+ * Design Tokens
+ * - 紙のような温かみのある背景 × 墨色のテキスト × テラコッタのアクセント
+ * - 色は知覚的に均一な OKLCH で定義（ライト / ダークで明度だけを反転しやすい）
+ */
+:root {
+  --radius: 0.875rem;
+
+  --background: oklch(0.985 0.007 85);
+  --foreground: oklch(0.23 0.02 265);
+  --card: oklch(0.998 0.003 85);
+  --card-foreground: oklch(0.23 0.02 265);
+  --popover: oklch(0.998 0.003 85);
+  --popover-foreground: oklch(0.23 0.02 265);
+  --primary: oklch(0.56 0.15 42);
+  --primary-foreground: oklch(0.985 0.007 85);
+  --secondary: oklch(0.955 0.012 85);
+  --secondary-foreground: oklch(0.3 0.02 265);
+  --muted: oklch(0.955 0.012 85);
+  --muted-foreground: oklch(0.5 0.02 265);
+  --accent: oklch(0.94 0.035 70);
+  --accent-foreground: oklch(0.32 0.06 45);
+  --destructive: oklch(0.58 0.22 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.9 0.012 85);
+  --input: oklch(0.88 0.014 85);
+  --ring: oklch(0.56 0.15 42);
+  --like: oklch(0.63 0.22 12);
+  --success: oklch(0.6 0.13 155);
+}
+
+.dark {
+  --background: oklch(0.165 0.014 265);
+  --foreground: oklch(0.95 0.008 85);
+  --card: oklch(0.205 0.016 265);
+  --card-foreground: oklch(0.95 0.008 85);
+  --popover: oklch(0.205 0.016 265);
+  --popover-foreground: oklch(0.95 0.008 85);
+  --primary: oklch(0.76 0.13 58);
+  --primary-foreground: oklch(0.2 0.02 265);
+  --secondary: oklch(0.26 0.016 265);
+  --secondary-foreground: oklch(0.92 0.008 85);
+  --muted: oklch(0.25 0.015 265);
+  --muted-foreground: oklch(0.7 0.015 265);
+  --accent: oklch(0.3 0.04 55);
+  --accent-foreground: oklch(0.92 0.05 70);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.76 0.13 58);
+  --like: oklch(0.72 0.19 12);
+  --success: oklch(0.72 0.14 155);
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-serif: var(--font-noto-serif-jp), "Hiragino Mincho ProN", "Yu Mincho", serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-like: var(--like);
+  --color-success: var(--success);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
+
+  --animate-pop: pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-fade-up: fade-up 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.28); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    @apply border-border outline-ring/50;
   }
+
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground;
+    font-feature-settings: "palt" 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+@layer utilities {
+  /* 横スクロールのナビゲーション用にスクロールバーを隠す */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

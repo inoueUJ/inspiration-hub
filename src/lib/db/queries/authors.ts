@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db/client"
 import { authors, quotes } from "@/lib/db/schema"
-import { eq, isNull, sql } from "drizzle-orm"
+import { eq, isNull, sql, and } from "drizzle-orm"
 
 /**
  * 全人物を取得（削除済み除外）
@@ -22,8 +22,12 @@ export async function getAuthorById(id: number) {
   const [author] = await db
     .select()
     .from(authors)
-    .where(eq(authors.id, id))
-    .where(isNull(authors.deletedAt))
+    .where(
+      and(
+        eq(authors.id, id),
+        isNull(authors.deletedAt),
+      )
+    )
     .limit(1)
 
   return author || null
@@ -53,8 +57,12 @@ export async function updateAuthor(id: number, name: string) {
       name,
       updatedAt: new Date(),
     })
-    .where(eq(authors.id, id))
-    .where(isNull(authors.deletedAt))
+    .where(
+      and(
+        eq(authors.id, id),
+        isNull(authors.deletedAt),
+      )
+    )
     .returning()
 
   return author || null
@@ -85,8 +93,12 @@ export async function getAuthorWithCount(id: number) {
   const [quoteCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(quotes)
-    .where(eq(quotes.authorId, id))
-    .where(isNull(quotes.deletedAt))
+    .where(
+      and(
+        eq(quotes.authorId, id),
+        isNull(quotes.deletedAt),
+      )
+    )
 
   return {
     ...author,
@@ -116,9 +128,13 @@ export async function getAuthorsByCategory(categoryId: number) {
       sql`subcategories`,
       sql`${quotes.subcategoryId} = subcategories.id`
     )
-    .where(sql`subcategories.category_id = ${categoryId}`)
-    .where(isNull(authors.deletedAt))
-    .where(isNull(quotes.deletedAt))
+    .where(
+      and(
+        sql`subcategories.category_id = ${categoryId}`,
+        isNull(authors.deletedAt),
+        isNull(quotes.deletedAt),
+      )
+    )
     .groupBy(authors.id, authors.name, authors.createdAt, authors.updatedAt, authors.deletedAt)
     .orderBy(authors.name)
 

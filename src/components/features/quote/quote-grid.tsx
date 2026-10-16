@@ -1,59 +1,56 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import type { Quote } from "@/types/quote"
+import { useState } from "react"
+import type { QuoteDTO } from "@/types/quote"
+import { cn } from "@/lib/utils"
 import { QuoteCard } from "./quote-card"
 import { QuoteDialog } from "./quote-dialog"
 
 interface QuoteGridProps {
-  quotes: Quote[]
+  quotes: readonly QuoteDTO[]
+  likedIds: readonly number[]
+  highlight?: string
+  className?: string
 }
 
 /**
  * 名言グリッド - Client Component
- * クリックイベントとダイアログ表示を管理
+ *
+ * 「どの名言を開いているか」は index ではなく id で持つ。
+ * フィルタや revalidate で配列が入れ替わっても、開いている名言がズレない。
+ * open と selectedId を分けているのは、閉じるアニメーション中も内容を描画し続けるため。
  */
-export function QuoteGrid({ quotes }: QuoteGridProps) {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-
-  const handleCardClick = useCallback((index: number) => {
-    setSelectedIndex(index)
-  }, [])
-
-  const handleDialogClose = useCallback(() => {
-    setSelectedIndex(null)
-  }, [])
-
-  if (quotes.length === 0) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">名言がありません</p>
-      </div>
-    )
-  }
+export function QuoteGrid({ quotes, likedIds, highlight, className }: QuoteGridProps) {
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [open, setOpen] = useState(false)
+  const likedSet = new Set(likedIds)
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {quotes.map((quote, index) => (
-          <div
-            key={quote.id}
-            onClick={() => handleCardClick(index)}
-            className="cursor-pointer transition-transform hover:scale-[1.02]"
-          >
-            <QuoteCard quote={quote} />
-          </div>
+      <ul className={cn("grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3", className)}>
+        {quotes.map((quote) => (
+          <li key={quote.id}>
+            <QuoteCard
+              quote={quote}
+              liked={likedSet.has(quote.id)}
+              highlight={highlight}
+              onOpen={() => {
+                setSelectedId(quote.id)
+                setOpen(true)
+              }}
+            />
+          </li>
         ))}
-      </div>
+      </ul>
 
-      {selectedIndex !== null && (
-        <QuoteDialog
-          quotes={quotes}
-          initialIndex={selectedIndex}
-          open={selectedIndex !== null}
-          onOpenChange={(open) => !open && handleDialogClose()}
-        />
-      )}
+      <QuoteDialog
+        quotes={quotes}
+        selectedId={selectedId}
+        open={open}
+        likedIds={likedSet}
+        onOpenChange={setOpen}
+        onSelect={setSelectedId}
+      />
     </>
   )
 }

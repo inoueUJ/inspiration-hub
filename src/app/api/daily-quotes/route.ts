@@ -1,16 +1,17 @@
 import { NextRequest } from "next/server"
 import { getDailyQuotes } from "@/lib/db/queries/daily-quotes"
 import { successResponse, errorResponse } from "@/lib/api/response"
+import { getDateKey } from "@/lib/utils/date"
 
 /**
  * GET /api/daily-quotes
  * 日替わり名言取得
- * クエリパラメータ: date (YYYY-MM-DD形式、省略時は今日)
+ * クエリパラメータ: date (YYYY-MM-DD形式、省略時は今日（JST）)
  */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const date = searchParams.get("date") || undefined
+    const date = searchParams.get("date") || getDateKey()
 
     const quotes = await getDailyQuotes(date)
 

@@ -32,9 +32,12 @@ export async function getSubcategoryById(id: number) {
     })
     .from(subcategories)
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(subcategories.id, id))
     .where(
-      and(isNull(subcategories.deletedAt), isNull(categories.deletedAt))
+      and(
+        eq(subcategories.id, id),
+        isNull(subcategories.deletedAt),
+        isNull(categories.deletedAt),
+      )
     )
     .limit(1)
 
@@ -54,8 +57,12 @@ export async function getSubcategoriesByCategory(categoryId: number) {
   return db
     .select()
     .from(subcategories)
-    .where(eq(subcategories.categoryId, categoryId))
-    .where(isNull(subcategories.deletedAt))
+    .where(
+      and(
+        eq(subcategories.categoryId, categoryId),
+        isNull(subcategories.deletedAt),
+      )
+    )
     .orderBy(subcategories.name)
 }
 
@@ -89,8 +96,12 @@ export async function updateSubcategory(
       ...data,
       updatedAt: new Date(),
     })
-    .where(eq(subcategories.id, id))
-    .where(isNull(subcategories.deletedAt))
+    .where(
+      and(
+        eq(subcategories.id, id),
+        isNull(subcategories.deletedAt),
+      )
+    )
     .returning()
 
   return subcategory || null
@@ -121,8 +132,12 @@ export async function getSubcategoryWithCount(id: number) {
   const [quoteCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(quotes)
-    .where(eq(quotes.subcategoryId, id))
-    .where(isNull(quotes.deletedAt))
+    .where(
+      and(
+        eq(quotes.subcategoryId, id),
+        isNull(quotes.deletedAt),
+      )
+    )
 
   return {
     ...subcategory,

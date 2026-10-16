@@ -23,13 +23,13 @@ export async function getQuoteById(id: number) {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(quotes.id, id))
     .where(
       and(
+        eq(quotes.id, id),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
-        isNull(categories.deletedAt)
+        isNull(categories.deletedAt),
       )
     )
     .limit(1)
@@ -98,13 +98,13 @@ export async function getQuotesBySubcategory(subcategoryId: number) {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(quotes.subcategoryId, subcategoryId))
     .where(
       and(
+        eq(quotes.subcategoryId, subcategoryId),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
-        isNull(categories.deletedAt)
+        isNull(categories.deletedAt),
       )
     )
     .orderBy(desc(quotes.createdAt))
@@ -135,13 +135,13 @@ export async function getQuotesByAuthor(authorId: number) {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(quotes.authorId, authorId))
     .where(
       and(
+        eq(quotes.authorId, authorId),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
-        isNull(categories.deletedAt)
+        isNull(categories.deletedAt),
       )
     )
     .orderBy(desc(quotes.createdAt))
@@ -172,13 +172,13 @@ export async function getQuotesByCategory(categoryId: number) {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(categories.id, categoryId))
     .where(
       and(
+        eq(categories.id, categoryId),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
-        isNull(categories.deletedAt)
+        isNull(categories.deletedAt),
       )
     )
     .orderBy(desc(quotes.createdAt))
@@ -271,8 +271,12 @@ export async function updateQuote(
       ...data,
       updatedAt: new Date(),
     })
-    .where(eq(quotes.id, id))
-    .where(isNull(quotes.deletedAt))
+    .where(
+      and(
+        eq(quotes.id, id),
+        isNull(quotes.deletedAt),
+      )
+    )
     .returning()
 
   return quote || null

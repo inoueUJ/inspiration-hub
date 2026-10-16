@@ -100,7 +100,7 @@ export const quotes = sqliteTable("quotes", {
 
 /**
  * 日替わり名言テーブル
- * 毎日0時（UTC）にバッチ処理でランダム30件を選定
+ * 毎日0時（JST）にバッチ処理でランダム30件を選定
  * 1日あたり30件のレコードが保存される
  */
 export const dailyQuotes = sqliteTable(
