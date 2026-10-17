@@ -53,6 +53,8 @@ export async function getDb(): Promise<Database> {
   } else {
     // 開発環境：better-sqlite3
     try {
+      // ネイティブモジュールのため、本番（Workers）バンドルに静的 import で含めない
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Database = require("better-sqlite3");
       const dbPath = (process.env.DATABASE_URL || "./local.db").replace(
         /^file:/,

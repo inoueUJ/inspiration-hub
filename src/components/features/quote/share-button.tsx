@@ -1,6 +1,6 @@
 "use client"
 
-import { useOptimistic, useTransition } from "react"
+import { useRef, useState } from "react"
 import { Check, Share2 } from "lucide-react"
 import type { QuoteDTO } from "@/types/quote"
 import { cn } from "@/lib/utils"
@@ -12,48 +12,38 @@ interface ShareButtonProps {
 
 const COPIED_FEEDBACK_MS = 1600
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 /**
  * シェアボタン
  *
- * 「コピーしました」の一時表示を useOptimistic で表現している。
- * 楽観的な値は transition の間だけ有効で、終了すると自動で false に戻るため、
- * setTimeout + useEffect でのリセット処理やアンマウント時の後始末が要らない。
+ * 「コピーしました」の一時表示は通常の state + タイマーで管理する。
+ * （async transition で待機させると、その間は他の transition——タブ切り替えや
+ * ページ遷移——まで巻き込んで保留されてしまうため使わない）
  */
 export function ShareButton({ quote, className }: ShareButtonProps) {
-  const [copied, setCopied] = useOptimistic(false)
-  const [, startTransition] = useTransition()
+  const [copied, setCopied] = useState(false)
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  function handleShare(): void {
+  async function handleShare(): Promise<void> {
     const url = new URL(`/quote/${quote.id}`, window.location.origin).toString()
     const text = `「${quote.textJa ?? quote.text}」— ${quote.author.name}`
 
-    // Web Share API が使える環境（主にモバイル）は OS のシェアシートへ
-    if (typeof navigator.share === "function") {
-      navigator.share({ title: "Inspiration Hub", text, url }).catch((error: unknown) => {
-        // ユーザーによるキャンセル（AbortError）は正常系
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          console.error("Failed to share quote:", error)
-        }
-      })
-      return
-    }
-
-    startTransition(async () => {
-      // 楽観的な更新は await より前（transition のスコープ内）で行う
-      setCopied(true)
-      try {
-        await Promise.all([
-          navigator.clipboard.writeText(`${text}\n${url}`),
-          wait(COPIED_FEEDBACK_MS),
-        ])
-      } catch (error) {
-        console.error("Failed to copy quote:", error)
+    try {
+      // Web Share API が使える環境（主にモバイル）は OS のシェアシートへ
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: "Inspiration Hub", text, url })
+        return
       }
-    })
+
+      await navigator.clipboard.writeText(`${text}\n${url}`)
+      setCopied(true)
+      clearTimeout(resetTimerRef.current)
+      resetTimerRef.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS)
+    } catch (error) {
+      // ユーザーによるキャンセル（AbortError）は正常系
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        console.error("Failed to share quote:", error)
+      }
+    }
   }
 
   return (

@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers"
 import { z } from "zod"
-import { countRecentSubmissions, createSubmission } from "@/lib/data/submissions"
+import { createSubmissionWithinQuota } from "@/lib/data/submissions"
 import { sha256Hex } from "@/lib/utils/hash"
 import {
   QUOTE_SUBMISSION_FIELDS,
@@ -69,9 +69,12 @@ export async function submitQuoteAction(
 
   try {
     const fingerprint = await getSubmitterFingerprint()
-    const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS)
+    const submission = await createSubmissionWithinQuota(parsed.data, fingerprint, {
+      windowStart: new Date(Date.now() - RATE_LIMIT_WINDOW_MS),
+      maxSubmissions: RATE_LIMIT_MAX_SUBMISSIONS,
+    })
 
-    if ((await countRecentSubmissions(fingerprint, since)) >= RATE_LIMIT_MAX_SUBMISSIONS) {
+    if (!submission) {
       return {
         status: "error",
         message: "短時間に投稿が集中しています。しばらく時間をおいてから再度お試しください。",
@@ -79,8 +82,6 @@ export async function submitQuoteAction(
         values,
       }
     }
-
-    await createSubmission(parsed.data, fingerprint)
 
     return {
       status: "success",

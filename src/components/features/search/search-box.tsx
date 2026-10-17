@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition, type ChangeEvent, type FormEvent } from "react"
 import { Loader2, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { MAX_SEARCH_QUERY_LENGTH } from "@/lib/validators/search"
 
 interface SearchBoxProps {
   /** URL（searchParams）上の確定した検索語 */
@@ -91,6 +92,7 @@ export function SearchBox({ query }: SearchBoxProps) {
         onChange={handleChange}
         onCompositionEnd={(event) => search(event.currentTarget.value)}
         placeholder="例：アインシュタイン、勇気、主人公"
+        maxLength={MAX_SEARCH_QUERY_LENGTH}
         autoComplete="off"
         enterKeyHint="search"
         autoFocus

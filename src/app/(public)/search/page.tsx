@@ -1,12 +1,12 @@
 import Link from "next/link"
 import type { Metadata } from "next"
 import { Suspense } from "react"
-import { z } from "zod"
 import { searchQuotes, MAX_SEARCH_RESULTS } from "@/lib/data/quotes"
 import { getCategorySummaries } from "@/lib/data/categories"
 import { getAllAuthors } from "@/lib/data/authors"
 import { getViewerLikedQuoteIds } from "@/lib/data/viewer"
 import { firstParam } from "@/lib/utils/route-params"
+import { SearchQuerySchema } from "@/lib/validators/search"
 import { PageHeader } from "@/components/layouts/page-header"
 import { SearchBox } from "@/components/features/search/search-box"
 import { QuoteGrid } from "@/components/features/quote/quote-grid"
@@ -19,8 +19,6 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
 interface SearchPageProps {
   searchParams: SearchParams
 }
-
-const SearchQuerySchema = z.string().trim().max(100).catch("")
 
 async function getQuery(searchParams: SearchParams): Promise<string> {
   return SearchQuerySchema.parse(firstParam((await searchParams).q) ?? "")
