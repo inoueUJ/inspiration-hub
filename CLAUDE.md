@@ -32,10 +32,13 @@ npm run dev
 npm run build
 
 # 型チェック
-npx tsc --noEmit
+npm run typecheck
 
 # Lint
 npm run lint
+
+# 主要画面のスクリーンショット撮影（dev サーバー起動中に実行 → screenshots/）
+npm run screenshots
 
 # DBスキーマ反映
 npm run db:push
@@ -77,6 +80,7 @@ src/
 │   ├── data/                     # cache() 付きデータ取得（Server 専用、DTO を返す）
 │   ├── db/                       # データベース関連
 │   ├── hooks/                    # カスタムフック
+│   ├── likes/                    # 「共感」の確定値ストア（クライアント）
 │   ├── validators/               # Zod スキーマ
 │   └── utils/                    # ヘルパー関数
 └── types/                        # TypeScript 型定義
@@ -88,6 +92,14 @@ src/
 - Server Component では Promise を **await せずに** Client Component へ渡し、`use()` で解決する
 - Drizzle のクエリビルダーは thenable のため、**async 関数から return すると即実行される**点に注意
 - `.where()` は後勝ちで上書きされる。複数条件は必ず `and()` でまとめる
+
+## CI / PR
+
+- **CI**（`.github/workflows/ci.yml`）: push（main）と PR で typecheck → lint → build
+- **PR Screenshots**（`.github/workflows/pr-screenshots.yml`）: PR ごとにローカル SQLite + dev サーバーで主要画面を撮影し、
+  画像を `pr-screenshots` ブランチへ push して PR にコメント（1件を上書き更新）する
+  - 撮影中にコンソールエラー / ページ例外が出るとジョブが失敗する（E2E スモークテストを兼ねる）
+  - 撮影シナリオは `scripts/screenshots.mjs` の `SCENARIOS` に追加する
 
 ## コーディング規約
 
