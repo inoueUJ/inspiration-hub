@@ -1,0 +1,61 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "capturedAt": "2026-10-17T09:10:21.131Z",
+  "shots": [
+    {
+      "name": "top",
+      "title": "TOP（今日の一言・30選）",
+      "path": "/",
+      "file": "top.png"
+    },
+    {
+      "name": "top-filter",
+      "title": "TOP：カテゴリタブで絞り込み",
+      "path": "/",
+      "file": "top-filter.png"
+    },
+    {
+      "name": "quote-dialog",
+      "title": "名言ダイアログ",
+      "path": "/",
+      "file": "quote-dialog.png"
+    },
+    {
+      "name": "category",
+      "title": "カテゴリページ",
+      "path": "/category/1",
+      "file": "category.png"
+    },
+    {
+      "name": "author",
+      "title": "人物ページ",
+      "path": "/author/1",
+      "file": "author.png"
+    },
+    {
+      "name": "quote",
+      "title": "名言詳細ページ",
+      "path": "/quote/1",
+      "file": "quote.png"
+    },
+    {
+      "name": "search",
+      "title": "検索（インクリメンタル）",
+      "path": "/search",
+      "file": "search.png"
+    },
+    {
+      "name": "submit-validation",
+      "title": "投稿フォーム（バリデーション）",
+      "path": "/submit",
+      "file": "submit-validation.png"
+    },
+    {
+      "name": "top-mobile-dark",
+      "title": "TOP（モバイル・ダークモード）",
+      "path": "/",
+      "file": "top-mobile-dark.png"
+    }
+  ],
+  "problems": []
+}
