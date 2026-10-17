@@ -7,13 +7,14 @@ import {
   categories,
 } from "@/lib/db/schema"
 import { eq, isNull, sql, and } from "drizzle-orm"
+import { getDateKey } from "@/lib/utils/date"
 
 /**
  * 日替わり名言を取得（特定日）
  */
 export async function getDailyQuotes(date?: string) {
   const db = await getDb();
-  const targetDate = date || new Date().toISOString().split("T")[0]
+  const targetDate = date || getDateKey()
 
   const result = await db
     .select({
@@ -28,13 +29,13 @@ export async function getDailyQuotes(date?: string) {
     .innerJoin(authors, eq(quotes.authorId, authors.id))
     .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
     .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(dailyQuotes.date, targetDate))
     .where(
       and(
+        eq(dailyQuotes.date, targetDate),
         isNull(quotes.deletedAt),
         isNull(authors.deletedAt),
         isNull(subcategories.deletedAt),
-        isNull(categories.deletedAt)
+        isNull(categories.deletedAt),
       )
     )
 

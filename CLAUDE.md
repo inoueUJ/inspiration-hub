@@ -32,10 +32,13 @@ npm run dev
 npm run build
 
 # 型チェック
-npx tsc --noEmit
+npm run typecheck
 
 # Lint
 npm run lint
+
+# 主要画面のスクリーンショット撮影（dev サーバー起動中に実行 → screenshots/）
+npm run screenshots
 
 # DBスキーマ反映
 npm run db:push
@@ -52,26 +55,51 @@ npm run deploy
 ```
 src/
 ├── app/                          # App Router pages
-│   ├── (public)/                 # 公開ページグループ
-│   │   ├── page.tsx              # TOP (日替わり名言)
+│   ├── (public)/                 # 公開ページグループ（ヘッダー/フッター付き、force-dynamic）
+│   │   ├── page.tsx              # TOP (今日の一言 + 日替わり30選)
 │   │   ├── category/[id]/        # カテゴリページ
 │   │   ├── subcategory/[id]/     # 中項目ページ
-│   │   └── author/[id]/          # 人物ページ
+│   │   ├── author/[id]/          # 人物ページ
+│   │   ├── quote/[id]/           # 名言の詳細（パーマリンク）
+│   │   ├── search/               # 検索（URL ?q= が唯一の状態）
+│   │   ├── bookmarks/            # ブックマーク（localStorage）
+│   │   └── submit/               # 名言の投稿フォーム
 │   ├── admin/                    # 管理画面 (認証必須)
-│   │   ├── login/
-│   │   └── dashboard/
 │   └── api/                      # API Routes
 ├── components/                   # 共有コンポーネント
-│   ├── ui/                       # shadcn/ui コンポーネント
+│   ├── ui/                       # shadcn/ui コンポーネント（React 19: ref は props）
 │   ├── features/                 # 機能別コンポーネント
-│   └── layouts/                  # レイアウトコンポーネント
+│   ├── layouts/                  # レイアウトコンポーネント
+│   └── skeletons/                # Loading UI
+├── server/
+│   └── actions/                  # Server Actions（"use server"）
 ├── lib/                          # 共有ライブラリ
 │   ├── api/                      # API ユーティリティ
 │   ├── auth/                     # 認証関連
+│   ├── bookmarks/                # ブックマークの外部ストア / クライアント取得
+│   ├── data/                     # cache() 付きデータ取得（Server 専用、DTO を返す）
 │   ├── db/                       # データベース関連
+│   ├── hooks/                    # カスタムフック
+│   ├── likes/                    # 「共感」の確定値ストア（クライアント）
+│   ├── validators/               # Zod スキーマ
 │   └── utils/                    # ヘルパー関数
 └── types/                        # TypeScript 型定義
 ```
+
+### Server → Client のデータ境界
+
+- `lib/data/*` は DB の行ではなく **`QuoteDTO`**（`lib/validators/quote.ts`）を返す
+- Server Component では Promise を **await せずに** Client Component へ渡し、`use()` で解決する
+- Drizzle のクエリビルダーは thenable のため、**async 関数から return すると即実行される**点に注意
+- `.where()` は後勝ちで上書きされる。複数条件は必ず `and()` でまとめる
+
+## CI / PR
+
+- **CI**（`.github/workflows/ci.yml`）: push（main）と PR で typecheck → lint → build
+- **PR Screenshots**（`.github/workflows/pr-screenshots.yml`）: PR ごとにローカル SQLite + dev サーバーで主要画面を撮影し、
+  画像を `pr-screenshots` ブランチへ push して PR にコメント（1件を上書き更新）する
+  - 撮影中にコンソールエラー / ページ例外が出るとジョブが失敗する（E2E スモークテストを兼ねる）
+  - 撮影シナリオは `scripts/screenshots.mjs` の `SCENARIOS` に追加する
 
 ## コーディング規約
 

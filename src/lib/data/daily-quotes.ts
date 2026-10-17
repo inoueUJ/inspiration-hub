@@ -1,63 +1,76 @@
 import { cache } from "react"
+import { asc, eq, isNull, sql } from "drizzle-orm"
 import { getDb } from "@/lib/db/client"
-import {
-  dailyQuotes,
-  quotes,
-  authors,
-  subcategories,
-  categories,
-} from "@/lib/db/schema"
-import { eq, isNull, sql, and } from "drizzle-orm"
+import { dailyQuotes, quotes } from "@/lib/db/schema"
+import { selectPublishedQuotes } from "@/lib/data/quotes"
+import { getDateKey, hashString } from "@/lib/utils/date"
+import type { DailyQuotesResult, QuoteDTO } from "@/types/quote"
+
+/**
+ * 1日に表示する名言の件数
+ */
+export const MAX_QUOTES_PER_DAY = 30
 
 /**
  * 日替わり名言を取得（特定日）
  * React.cache() により同一リクエスト内で重複排除
  */
-export const getDailyQuotes = cache(async (date?: string) => {
+export const getDailyQuotes = cache(
+  async (date: string = getDateKey()): Promise<QuoteDTO[]> => {
+    const db = await getDb()
+    return selectPublishedQuotes(db, eq(dailyQuotes.date, date))
+      .innerJoin(dailyQuotes, eq(dailyQuotes.quoteId, quotes.id))
+      .orderBy(asc(dailyQuotes.id))
+      .limit(MAX_QUOTES_PER_DAY)
+  }
+)
+
+/**
+ * 日付をシードにした決定的なシャッフルで名言を選ぶ
+ *
+ * `ORDER BY RANDOM()` はリクエストごとに結果が変わってしまうため、
+ * Cron 未実行の日でも「その日のあいだは同じ30件」になるよう線形合同の
+ * ハッシュで並べ替える。
+ */
+const getSeededQuotes = cache(async (date: string): Promise<QuoteDTO[]> => {
+  const seed = hashString(date) % 2_147_483_647
   const db = await getDb()
-  const targetDate = date || new Date().toISOString().split("T")[0]
-
-  const result = await db
-    .select({
-      dailyQuote: dailyQuotes,
-      quote: quotes,
-      author: authors,
-      subcategory: subcategories,
-      category: categories,
-    })
-    .from(dailyQuotes)
-    .innerJoin(quotes, eq(dailyQuotes.quoteId, quotes.id))
-    .innerJoin(authors, eq(quotes.authorId, authors.id))
-    .innerJoin(subcategories, eq(quotes.subcategoryId, subcategories.id))
-    .innerJoin(categories, eq(subcategories.categoryId, categories.id))
-    .where(eq(dailyQuotes.date, targetDate))
-    .where(
-      and(
-        isNull(quotes.deletedAt),
-        isNull(authors.deletedAt),
-        isNull(subcategories.deletedAt),
-        isNull(categories.deletedAt)
-      )
-    )
-
-  return result.map((row: typeof result[0]) => ({
-    ...row.quote,
-    author: row.author,
-    subcategory: {
-      ...row.subcategory,
-      category: row.category,
-    },
-  }))
+  return selectPublishedQuotes(db)
+    .orderBy(sql`((${quotes.id} * 2654435761) + ${seed}) % 2147483647`)
+    .limit(MAX_QUOTES_PER_DAY)
 })
+
+/**
+ * 今日の名言30件を取得
+ * Cron で生成済みならそれを、未生成なら日付シードのフォールバックを返す
+ */
+export const getTodayQuotes = cache(
+  async (date: string = getDateKey()): Promise<DailyQuotesResult> => {
+    const daily = await getDailyQuotes(date)
+    if (daily.length > 0) {
+      return { date, source: "daily", quotes: daily }
+    }
+
+    return { date, source: "fallback", quotes: await getSeededQuotes(date) }
+  }
+)
+
+/**
+ * 今日の名言の中から「今日の一言」を1件選ぶ（日付で決定的）
+ */
+export function pickFeaturedQuote(result: DailyQuotesResult): QuoteDTO | null {
+  if (result.quotes.length === 0) return null
+  return result.quotes[hashString(`featured:${result.date}`) % result.quotes.length]
+}
 
 /**
  * 日替わり名言が存在するか確認
  * React.cache() により同一リクエスト内で重複排除
  */
-export const checkDailyQuotesExist = cache(async (date: string) => {
+export const checkDailyQuotesExist = cache(async (date: string): Promise<boolean> => {
   const db = await getDb()
   const [result] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
     .from(dailyQuotes)
     .where(eq(dailyQuotes.date, date))
 
@@ -70,11 +83,10 @@ export const checkDailyQuotesExist = cache(async (date: string) => {
 
 /**
  * 日替わり名言を生成（バッチ処理用）
+ * daily_quotes は「その日の選定結果」を保持する派生テーブルのため、再生成時は入れ替える
  */
-export async function generateDailyQuotes(date: string) {
+export async function generateDailyQuotes(date: string): Promise<number> {
   const db = await getDb()
-  // 既存のデータを削除
-  await db.delete(dailyQuotes).where(eq(dailyQuotes.date, date))
 
   // ランダムに30件選定
   const randomQuotes = await db
@@ -82,19 +94,17 @@ export async function generateDailyQuotes(date: string) {
     .from(quotes)
     .where(isNull(quotes.deletedAt))
     .orderBy(sql`RANDOM()`)
-    .limit(30)
+    .limit(MAX_QUOTES_PER_DAY)
 
   if (randomQuotes.length === 0) {
     return 0
   }
 
-  // daily_quotesに挿入
-  const insertData = randomQuotes.map((q: typeof randomQuotes[0]) => ({
-    date,
-    quoteId: q.id,
-  }))
+  // 既存のデータを入れ替え
+  await db.delete(dailyQuotes).where(eq(dailyQuotes.date, date))
+  await db
+    .insert(dailyQuotes)
+    .values(randomQuotes.map((quote) => ({ date, quoteId: quote.id })))
 
-  await db.insert(dailyQuotes).values(insertData)
-
-  return insertData.length
+  return randomQuotes.length
 }

@@ -2,13 +2,14 @@ import {
   generateDailyQuotes,
   getDailyQuotes,
 } from "../src/lib/data/daily-quotes"
+import { getDateKey } from "../src/lib/utils/date"
 
 const EXPECTED_DAILY_QUOTES = 30
 
 async function test() {
   console.log("📅 Testing daily quotes generation...")
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = getDateKey()
   console.log(`Date: ${today}`)
 
   // 1. 日替わり名言を生成

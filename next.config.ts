@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    /**
+     * React Compiler
+     * コンポーネント / フックを自動でメモ化するため、useMemo・useCallback・memo を
+     * 手書きせずに「再レンダリングしても安い」コードを書ける。
+     * useDeferredValue / useTransition の効果（重い子ツリーのスキップ）もこれで担保する。
+     */
+    reactCompiler: true,
+  },
 };
 
 export default nextConfig;

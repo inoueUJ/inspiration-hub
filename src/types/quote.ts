@@ -4,9 +4,13 @@ import type {
   Subcategory,
   Category,
 } from "@/lib/db/schema"
+import type { QuoteDTO } from "@/lib/validators/quote"
+
+export type { QuoteDTO }
 
 /**
- * 名言型（リレーション含む）
+ * 名言型（DBの行 + リレーション）
+ * 管理系 API（/api/quotes など）のレスポンスで使用
  */
 export type Quote = DbQuote & {
   author: Author
@@ -16,29 +20,14 @@ export type Quote = DbQuote & {
 }
 
 /**
- * 名言カードProps
+ * 日替わり名言の取得結果
+ * - daily: Cron で生成された daily_quotes から取得
+ * - fallback: 当日分が未生成のため、日付シードで決定的に選定
  */
-export interface QuoteCardProps {
-  quote: Quote
-  variant?: "default" | "compact"
-  showCategory?: boolean
-}
-
-/**
- * 名言グリッドProps
- */
-export interface QuoteGridProps {
-  quotes: Quote[]
-}
-
-/**
- * 名言ダイアログProps
- */
-export interface QuoteDialogProps {
-  quotes: Quote[]
-  initialIndex: number
-  open: boolean
-  onOpenChange: (open: boolean) => void
+export interface DailyQuotesResult {
+  date: string
+  source: "daily" | "fallback"
+  quotes: QuoteDTO[]
 }
 
 /**

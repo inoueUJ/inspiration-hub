@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server"
 import { generateDailyQuotes } from "@/lib/db/queries/daily-quotes"
 import { successResponse, errorResponse } from "@/lib/api/response"
+import { getDateKey } from "@/lib/utils/date"
 
 /**
  * GET /api/cron/daily-quotes
  * 日替わり名言生成バッチ
- * Cloudflare Cron Triggerで毎日0時（UTC）に実行
+ * Cloudflare Cron Triggerで毎日0時（JST）= 15時（UTC）に実行
  */
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       return errorResponse("UNAUTHORIZED", "認証に失敗しました", 401)
     }
 
-    const today = new Date().toISOString().split("T")[0]
+    const today = getDateKey()
     const count = await generateDailyQuotes(today)
 
     return successResponse({
